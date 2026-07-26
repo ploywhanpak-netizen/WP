@@ -1962,6 +1962,14 @@ function filteredBilling(){
   }
   return list;
 }
+function billingUniqueCount(rows, key){
+  var seen = {};
+  rows.forEach(function(r){
+    var v = String(r[key] || '').trim().toLowerCase();
+    if(v) seen[v] = 1;
+  });
+  return Object.keys(seen).length;
+}
 function renderBilling(){
   var fields = billingFields();
   var rows = filteredBilling();
@@ -1970,10 +1978,10 @@ function renderBilling(){
   document.getElementById('bCount').textContent = rows.length + ' shown of ' + (state.billing || []).length + ' total';
   var total = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
   document.getElementById('bStats').innerHTML = [
-    stat('Requests', fmt(rows.length), 'Approval rows'),
-    stat('Amount', money(total), 'Total requested'),
-    stat('Suppliers', fmt(unique(rows.map(function(r){ return r.supplier; })).length), 'Unique suppliers'),
-    stat('Companies', fmt(unique(rows.map(function(r){ return r.company; })).length), 'Unique companies')
+    statCard('', 'Requests', fmt(rows.length), 'Approval rows'),
+    statCard('accent-spend', 'Amount', money(total), 'Total requested'),
+    statCard('', 'Suppliers', fmt(billingUniqueCount(rows, 'supplier')), 'Unique suppliers'),
+    statCard('', 'Companies', fmt(billingUniqueCount(rows, 'company')), 'Unique companies')
   ].join('');
   if(!rows.length){
     document.getElementById('bBody').innerHTML = '';
