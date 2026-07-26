@@ -773,6 +773,7 @@ body.gated .gate{display:flex}
             <input class="search" id="bSearch" type="search" placeholder="PR, store, supplier, company" />
           </div>
           <div class="spacer"></div>
+          <button class="btn danger" type="button" id="btnClearBilling">Clear billing data</button>
           <button class="btn" type="button" id="btnImportBilling">Import CSV</button>
           <button class="btn" type="button" id="btnExportBilling">Export CSV</button>
           <button class="btn primary" type="button" id="btnAddBilling">+ Add request</button>
@@ -909,6 +910,7 @@ body.gated .gate{display:flex}
       <div id="billingForm"></div>
     </div>
     <div class="modal-foot">
+      <button class="btn" type="button" id="btnPrintBilling">Print</button>
       <button class="btn ghost" type="button" data-close>Cancel</button>
       <button class="btn primary" type="button" id="btnSaveBilling">บันทึกรายการ</button>
     </div>
@@ -1130,6 +1132,37 @@ function removeBillingOne(id){
   persistBillingLocal();
   if(!live() || state.billingSyncOff) return;
   fb.fs.deleteDoc(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, id)).catch(syncFail);
+}
+function deleteBillingRemote(rows){
+  if(!live() || state.billingSyncOff) return;
+  var ids = (rows || []).map(function(r){ return r && r.id; }).filter(Boolean);
+  if(!ids.length) return;
+  for(var i=0;i<ids.length;i+=450){
+    var batch = fb.fs.writeBatch(fb.db);
+    ids.slice(i, i + 450).forEach(function(id){
+      batch.delete(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, id));
+    });
+    batch.commit().catch(function(e){
+      state.billingSyncOff = true;
+      syncFail(e);
+    });
+  }
+}
+function clearBillingData(){
+  var rows = (state.billing || []).slice();
+  if(!rows.length){
+    toast('Billing data is already empty');
+    return;
+  }
+  if(!confirm('Clear all Billing approval requests? You can import the new CSV after this.')) return;
+  state.billing = [];
+  state.bf.q = '';
+  var search = document.getElementById('bSearch');
+  if(search) search.value = '';
+  persistBillingLocal();
+  deleteBillingRemote(rows);
+  renderBilling();
+  toast('Billing data cleared');
 }
 
 function signInWithGoogle(){
@@ -2302,7 +2335,7 @@ function openBilling(id){
   recalcBillingItems();
   setTimeout(function(){ document.getElementById('b_supplier').focus(); }, 30);
 }
-function saveBilling(){
+function currentBillingFormData(){
   var data = {};
   billingFields().forEach(function(f){
     var el = document.getElementById('b_' + f.key);
@@ -2319,6 +2352,40 @@ function saveBilling(){
     data.volume = items.reduce(function(s,it){ return s + num(it.volume); }, 0) || data.volume;
     if(items.length === 1 && !data.priceUnit) data.priceUnit = num(items[0].priceUnit);
   }
+  return data;
+}
+function printBilling(){
+  var data = currentBillingFormData();
+  var fields = billingFields();
+  var items = data.items || [];
+  var detailRows = fields.filter(function(f){ return !f.money && f.key !== 'detail' && f.key !== 'remark'; }).map(function(f){
+    return '<tr><th>' + esc(f.label) + '</th><td>' + esc(data[f.key] || '-') + '</td></tr>';
+  }).join('');
+  var noteRows = ['detail', 'remark'].map(function(k){
+    var f = fields.find(function(x){ return x.key === k; });
+    return f ? '<section><h3>' + esc(f.label) + '</h3><p>' + esc(data[k] || '-') + '</p></section>' : '';
+  }).join('');
+  var itemRows = items.length ? items.map(function(it, i){
+    return '<tr><td>' + (i + 1) + '</td><td>' + esc(it.name || '-') + '</td><td>' + esc(it.volume || '-') + '</td><td>' + money(num(it.priceUnit)) + '</td><td>' + money(num(it.amount)) + '</td></tr>';
+  }).join('') : '<tr><td colspan="5">-</td></tr>';
+  var win = window.open('', '_blank');
+  if(!win){
+    toast('Allow popups to print this request');
+    return;
+  }
+  win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(data.prNo || 'PR request') + '</title>' +
+    '<style>body{font-family:Arial,sans-serif;color:#0f172a;margin:28px}h1{margin:0 0 4px;font-size:24px}.brand{font-size:12px;letter-spacing:.22em;color:#d06000;font-weight:700}.sub{color:#64748b;margin:0 0 22px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.box{border:1px solid #d7e0e8;border-radius:10px;padding:14px;margin-bottom:16px}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #e5edf4;padding:9px 10px;text-align:left;vertical-align:top}th{width:190px;background:#f5f8fb;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#52677a}section h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#52677a;margin:0 0 6px}section p{white-space:pre-wrap;border:1px solid #e5edf4;border-radius:8px;padding:12px;margin:0 0 14px}.total{text-align:right;font-size:18px;font-weight:700;color:#047878}@media print{button{display:none}body{margin:18mm}}</style></head><body>' +
+    '<div class="brand">WHANPAK</div><h1>ใบคำขออนุมัติ</h1><p class="sub">Approval Request / ' + esc(data.prNo || '-') + '</p>' +
+    '<div class="box"><table>' + detailRows + '</table></div>' +
+    noteRows +
+    '<div class="box"><h3>รายการย่อย</h3><table><thead><tr><th>#</th><th>รายการ</th><th>จำนวน</th><th>Price / Unit</th><th>Amount</th></tr></thead><tbody>' + itemRows + '</tbody></table><p class="total">รวม ' + money(num(data.amount)) + '</p></div>' +
+    '<button onclick="window.print()">Print</button></body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); }, 250);
+}
+function saveBilling(){
+  var data = currentBillingFormData();
   var target;
   if(state.editingBillingId){
     target = state.billing.find(function(x){ return x.id === state.editingBillingId; });
@@ -2442,8 +2509,12 @@ function importBillingCSV(text){
     if(hasValue) incoming.push(item);
   });
   if(!incoming.length){ toast('No billing rows found in that file'); return; }
+  var oldBilling = (state.billing || []).slice();
+  var replaceExisting = oldBilling.length ? confirm('Replace current Billing data with this CSV? OK = replace all, Cancel = add only new rows.') : false;
   var existing = {};
-  (state.billing || []).forEach(function(r){ existing[billingFingerprint(r)] = 1; });
+  if(!replaceExisting){
+    (state.billing || []).forEach(function(r){ existing[billingFingerprint(r)] = 1; });
+  }
   var skipped = 0;
   incoming = incoming.filter(function(r){
     var key = billingFingerprint(r);
@@ -2455,8 +2526,13 @@ function importBillingCSV(text){
     toast('Skipped ' + skipped + ' duplicate billing row' + (skipped === 1 ? '' : 's'));
     return;
   }
-  if(!confirm('Add ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + (skipped ? ' and skip ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') : '') + '?')) return;
-  state.billing = state.billing.concat(incoming);
+  if(!confirm((replaceExisting ? 'Replace with ' : 'Add ') + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + (skipped ? ' and skip ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') : '') + '?')) return;
+  if(replaceExisting){
+    state.billing = incoming;
+    deleteBillingRemote(oldBilling);
+  } else {
+    state.billing = state.billing.concat(incoming);
+  }
   dedupeBilling(false);
   persistBillingLocal();
   if(live() && !state.billingSyncOff){
@@ -2830,6 +2906,7 @@ document.getElementById('view-targets').addEventListener('click', function(e){
 });
 document.getElementById('btnAddBilling').addEventListener('click', function(){ openBilling(); });
 document.getElementById('btnSaveBilling').addEventListener('click', saveBilling);
+document.getElementById('btnPrintBilling').addEventListener('click', printBilling);
 document.getElementById('billingForm').addEventListener('click', function(e){
   if(e.target.closest('[data-add-billing-item]')){
     document.getElementById('billingItemsBody').insertAdjacentHTML('beforeend', billingItemRow());
@@ -2856,6 +2933,7 @@ document.getElementById('billingForm').addEventListener('input', function(e){
   delete row.dataset.changedField;
 });
 document.getElementById('btnExportBilling').addEventListener('click', exportBillingCSV);
+document.getElementById('btnClearBilling').addEventListener('click', clearBillingData);
 document.getElementById('btnImportBilling').addEventListener('click', function(){
   document.getElementById('fileBillingImport').click();
 });
