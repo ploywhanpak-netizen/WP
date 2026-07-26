@@ -57,19 +57,28 @@ button,input,select,textarea{font:inherit;color:inherit}
 .brand p{margin:4px 0 0;font-size:11.5px;color:#7D93A8}
 .nav{padding:14px 12px;display:flex;flex-direction:column;gap:10px}
 .nav-group{display:flex;flex-direction:column;gap:2px}
+.nav-items{display:flex;flex-direction:column;gap:2px}
+.nav-group.collapsed .nav-items{display:none}
 .nav-title{
   font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
-  color:#6C8298;padding:6px 12px 5px;
+  color:#6C8298;padding:6px 12px 5px;background:none;border:0;width:100%;
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;
 }
-.nav button{
+.nav-title::after{
+  content:"";width:6px;height:6px;border-right:1px solid currentColor;border-bottom:1px solid currentColor;
+  transform:rotate(45deg);transition:transform .16s ease;
+}
+.nav-group.collapsed .nav-title::after{transform:rotate(-45deg)}
+.nav-title:hover{color:#C9D6E2}
+.nav .nav-link{
   display:flex;align-items:center;gap:10px;width:100%;text-align:left;
   background:none;border:0;color:#C9D6E2;padding:10px 12px;border-radius:8px;cursor:pointer;
   font-size:13.5px;font-weight:500;
 }
-.nav button:hover{background:rgba(255,255,255,.06);color:#fff}
-.nav button[aria-current="page"]{background:var(--ink-2);color:#fff;box-shadow:inset 2px 0 0 var(--clay)}
+.nav .nav-link:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav .nav-link[aria-current="page"]{background:var(--ink-2);color:#fff;box-shadow:inset 2px 0 0 var(--clay)}
 .nav .idx{font-family:var(--mono);font-size:10.5px;color:#6C8298}
-.nav button[aria-current="page"] .idx{color:var(--clay)}
+.nav .nav-link[aria-current="page"] .idx{color:var(--clay)}
 .side-foot{margin-top:auto;padding:14px 16px 18px;border-top:1px solid rgba(255,255,255,.09);font-size:11.5px;color:#7D93A8}
 .side-foot .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--teal);margin-right:7px;vertical-align:middle}
 .side-foot .dot.warn{background:var(--clay)}
@@ -471,8 +480,10 @@ body.gated .gate{display:flex}
   .brand p{display:none}
   .nav{flex-direction:row;padding:10px 0 0;gap:8px;overflow-x:auto}
   .nav-group{flex-direction:row;gap:8px;margin:0;flex:0 0 auto}
+  .nav-items{flex-direction:row;gap:8px}
+  .nav-group.collapsed .nav-items{display:flex}
   .nav-title{display:none}
-  .nav button{flex:0 0 auto;justify-content:center;padding:9px 10px;white-space:nowrap}
+  .nav .nav-link{flex:0 0 auto;justify-content:center;padding:9px 10px;white-space:nowrap}
   .side-foot{margin-top:10px;padding:10px 0 0}
   .side-foot .foot-label{display:none}
   .side-foot .row{margin-top:10px}
@@ -567,20 +578,26 @@ body.gated .gate{display:flex}
       <p>Campaign cost &amp; performance</p>
     </div>
     <nav class="nav">
-      <div class="nav-group">
-        <div class="nav-title">Influencer</div>
-        <button type="button" data-view="records" aria-current="page"><span class="idx">01</span> Influencer Records</button>
-        <button type="button" data-view="analytics"><span class="idx">02</span> Engagement KPI</button>
+      <div class="nav-group" data-nav-group="influencer">
+        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Influencer</button>
+        <div class="nav-items">
+          <button class="nav-link" type="button" data-view="records" aria-current="page"><span class="idx">01</span> Influencer Records</button>
+          <button class="nav-link" type="button" data-view="analytics"><span class="idx">02</span> Engagement KPI</button>
+        </div>
       </div>
-      <div class="nav-group">
-        <div class="nav-title">Target &amp; Budget</div>
-        <button type="button" data-view="targets"><span class="idx">03</span> Target</button>
-        <button type="button" data-view="budget"><span class="idx">04</span> Budget</button>
+      <div class="nav-group" data-nav-group="target-budget">
+        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Target &amp; Budget</button>
+        <div class="nav-items">
+          <button class="nav-link" type="button" data-view="targets"><span class="idx">03</span> Target</button>
+          <button class="nav-link" type="button" data-view="budget"><span class="idx">04</span> Budget</button>
+        </div>
       </div>
-      <div class="nav-group">
-        <div class="nav-title">Project Requests</div>
-        <button type="button" data-view="billing"><span class="idx">05</span> Projects Requests</button>
-        <button type="button" data-view="settings"><span class="idx">06</span> Settings</button>
+      <div class="nav-group" data-nav-group="project-requests">
+        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Requests</button>
+        <div class="nav-items">
+          <button class="nav-link" type="button" data-view="billing"><span class="idx">05</span> Projects Requests</button>
+          <button class="nav-link" type="button" data-view="settings"><span class="idx">06</span> Settings</button>
+        </div>
       </div>
     </nav>
     <div class="side-foot">
@@ -2838,10 +2855,39 @@ document.addEventListener('keydown', function(e){
 });
 
 /* ---------------- events ---------------- */
-Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function(b){
+var NAV_GROUP_KEY = 'influencer:navGroups:v1';
+function loadNavGroups(){
+  if(!canStore) return {};
+  try { return JSON.parse(window.localStorage.getItem(NAV_GROUP_KEY) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function saveNavGroups(groups){
+  if(!canStore) return;
+  try { window.localStorage.setItem(NAV_GROUP_KEY, JSON.stringify(groups)); } catch(e){}
+}
+function setNavGroup(group, collapsed){
+  group.classList.toggle('collapsed', collapsed);
+  var toggle = group.querySelector('[data-nav-toggle]');
+  if(toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+}
+var navGroupState = loadNavGroups();
+Array.prototype.forEach.call(document.querySelectorAll('.nav-group'), function(group){
+  var name = group.dataset.navGroup;
+  setNavGroup(group, navGroupState[name] === true);
+  var toggle = group.querySelector('[data-nav-toggle]');
+  if(toggle){
+    toggle.addEventListener('click', function(){
+      var collapsed = !group.classList.contains('collapsed');
+      setNavGroup(group, collapsed);
+      navGroupState[name] = collapsed;
+      saveNavGroups(navGroupState);
+    });
+  }
+});
+Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), function(b){
   b.addEventListener('click', function(){
     state.view = b.dataset.view;
-    Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function(x){ x.removeAttribute('aria-current'); });
+    Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), function(x){ x.removeAttribute('aria-current'); });
     b.setAttribute('aria-current','page');
     document.getElementById('view-records').classList.toggle('active', state.view === 'records');
     document.getElementById('view-analytics').classList.toggle('active', state.view === 'analytics');
