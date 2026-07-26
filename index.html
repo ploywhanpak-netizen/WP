@@ -2356,30 +2356,66 @@ function currentBillingFormData(){
 }
 function printBilling(){
   var data = currentBillingFormData();
-  var fields = billingFields();
   var items = data.items || [];
-  var detailRows = fields.filter(function(f){ return !f.money && f.key !== 'detail' && f.key !== 'remark'; }).map(function(f){
-    return '<tr><th>' + esc(f.label) + '</th><td>' + esc(data[f.key] || '-') + '</td></tr>';
-  }).join('');
-  var noteRows = ['detail', 'remark'].map(function(k){
-    var f = fields.find(function(x){ return x.key === k; });
-    return f ? '<section><h3>' + esc(f.label) + '</h3><p>' + esc(data[k] || '-') + '</p></section>' : '';
-  }).join('');
-  var itemRows = items.length ? items.map(function(it, i){
-    return '<tr><td>' + (i + 1) + '</td><td>' + esc(it.name || '-') + '</td><td>' + esc(it.volume || '-') + '</td><td>' + money(num(it.priceUnit)) + '</td><td>' + money(num(it.amount)) + '</td></tr>';
-  }).join('') : '<tr><td colspan="5">-</td></tr>';
+  var today = new Date();
+  var requestDate = today.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  var total = num(data.amount) || items.reduce(function(s,it){ return s + num(it.amount); }, 0);
+  function line(v){ return '<span class="line">' + esc(v || '-') + '</span>'; }
+  function printMoney(v){ return Number(num(v)).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+  function compact(v, max){
+    v = String(v || '').replace(/\s+/g, ' ').trim();
+    return v.length > max ? v.slice(0, max - 1) + '...' : v;
+  }
+  var budgetRows = [];
+  var sourceItems = items.length ? items : [{ name:data.description || data.detail || data.expenseType, volume:data.volume || 1, priceUnit:data.priceUnit, amount:total }];
+  sourceItems.slice(0, 5).forEach(function(it, i){
+    budgetRows.push(
+      '<tr>' +
+        '<td class="c">' + (i + 1) + '</td>' +
+        '<td>' + esc(compact(it.name || data.description || data.expenseType, 48)) + '</td>' +
+        '<td>' + esc(compact(data.detail || data.description, 90)) + '</td>' +
+        '<td>' + esc(compact(data.refNo || '-', 14)) + '</td>' +
+        '<td>' + esc(compact(data.expenseType || '-', 18)) + '</td>' +
+        '<td class="r">' + esc(it.volume || data.volume || '-') + '</td>' +
+        '<td class="r">' + printMoney(it.priceUnit || data.priceUnit) + '</td>' +
+        '<td class="r">' + printMoney(it.amount || total) + '</td>' +
+      '</tr>'
+    );
+  });
+  while(budgetRows.length < 5){
+    budgetRows.push('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>');
+  }
+  var links = [data.link, data.quotation, data.attachment, data.file2, data.invoice, data.receipt, data.transferProof, data.withholdingTax].filter(Boolean).join(' | ');
   var win = window.open('', '_blank');
   if(!win){
     toast('Allow popups to print this request');
     return;
   }
   win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(data.prNo || 'PR request') + '</title>' +
-    '<style>body{font-family:Arial,sans-serif;color:#0f172a;margin:28px}h1{margin:0 0 4px;font-size:24px}.brand{font-size:12px;letter-spacing:.22em;color:#d06000;font-weight:700}.sub{color:#64748b;margin:0 0 22px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.box{border:1px solid #d7e0e8;border-radius:10px;padding:14px;margin-bottom:16px}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #e5edf4;padding:9px 10px;text-align:left;vertical-align:top}th{width:190px;background:#f5f8fb;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#52677a}section h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#52677a;margin:0 0 6px}section p{white-space:pre-wrap;border:1px solid #e5edf4;border-radius:8px;padding:12px;margin:0 0 14px}.total{text-align:right;font-size:18px;font-weight:700;color:#047878}@media print{button{display:none}body{margin:18mm}}</style></head><body>' +
-    '<div class="brand">WHANPAK</div><h1>ใบคำขออนุมัติ</h1><p class="sub">Approval Request / ' + esc(data.prNo || '-') + '</p>' +
-    '<div class="box"><table>' + detailRows + '</table></div>' +
-    noteRows +
-    '<div class="box"><h3>รายการย่อย</h3><table><thead><tr><th>#</th><th>รายการ</th><th>จำนวน</th><th>Price / Unit</th><th>Amount</th></tr></thead><tbody>' + itemRows + '</tbody></table><p class="total">รวม ' + money(num(data.amount)) + '</p></div>' +
-    '<button onclick="window.print()">Print</button></body></html>');
+    '<style>@page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:Arial,\"Noto Sans Thai\",sans-serif;color:#000;background:#fff;font-size:9px;line-height:1.15}.sheet{width:194mm;min-height:281mm;margin:0 auto;padding:6mm 4mm 5mm;border-top:3px solid #000;overflow:hidden}h1{font-size:16px;margin:20px 0 28px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:18mm;margin-bottom:6px}.row{display:grid;grid-template-columns:28mm 1fr;align-items:end;min-height:18px}.lbl{font-weight:700}.line{display:block;border-bottom:1px dotted #000;min-height:13px;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.section-title{font-weight:700;border:1px solid #000;border-bottom:0;padding:3px 4px;margin-top:5px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #000;padding:3px 4px;vertical-align:top;height:26px;overflow:hidden}th{font-weight:700;text-align:center;font-size:8px}.c{text-align:center}.r{text-align:right}.budget td{height:40px}.budget .total-row td{height:18px;font-weight:700}.blank td{height:14px}.remarks{border-top:1px solid #000;margin-top:8px;padding-top:4px;min-height:28px}.link{border-bottom:1px dotted #000;margin-top:5px;padding-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.signs{display:flex;justify-content:center;gap:10mm;margin-top:22px}.sign{width:42mm;height:34mm;border:1px solid #000;text-align:center;padding-top:4px;position:relative}.sigline{position:absolute;left:5mm;right:5mm;bottom:16mm;border-bottom:1px dotted #000}.sigdate{position:absolute;left:5mm;right:5mm;bottom:5mm;border-bottom:1px dotted #999;padding-bottom:2px}.printbtn{position:fixed;right:14px;top:14px;padding:8px 12px}@media print{.printbtn{display:none}.sheet{margin:0;width:auto;min-height:auto;height:281mm;page-break-after:avoid}}</style></head><body>' +
+    '<button class="printbtn" onclick="window.print()">Print</button><div class="sheet">' +
+    '<h1>Project&nbsp;&nbsp;Requisition Form</h1>' +
+    '<div class="meta"><div>' +
+      '<div class="row"><div class="lbl">Project No.</div>' + line(data.prNo) + '</div>' +
+      '<div class="row"><div class="lbl">Request Date</div>' + line(requestDate) + '</div>' +
+      '<div class="row"><div class="lbl">Issued by</div>' + line(data.signature || whoami()) + '</div>' +
+      '<div class="row"><div class="lbl">Department</div>' + line('Marketing') + '</div>' +
+      '<div class="row"><div class="lbl">Supplier Name</div>' + line(data.supplier) + '</div>' +
+    '</div><div>' +
+      '<div class="row"><div class="lbl">Project Name</div>' + line(data.description) + '</div>' +
+      '<div class="row"><div class="lbl">Project Duration</div>' + line(data.projectDuration) + '</div>' +
+      '<div class="row"><div class="lbl">Venue/Placement</div>' + line(data.venuePlacement) + '</div>' +
+      '<div class="row"><div class="lbl">Ref. No.</div>' + line(data.refNo) + '</div>' +
+      '<div class="row"><div class="lbl">Store</div>' + line(data.store) + '</div>' +
+    '</div></div>' +
+    '<div class="section-title">Budget Breakdown</div>' +
+    '<table class="budget"><colgroup><col style="width:6mm"><col style="width:45mm"><col style="width:50mm"><col style="width:16mm"><col style="width:19mm"><col style="width:14mm"><col style="width:21mm"><col style="width:21mm"></colgroup><thead><tr><th>No.</th><th>Description</th><th>Detail/Product Review</th><th>Code</th><th>Code Name</th><th>Volume</th><th>Price / Unit</th><th>Total</th></tr></thead><tbody>' + budgetRows.join('') + '<tr class="total-row"><td colspan="7" class="r">Total</td><td class="r">' + printMoney(total) + '</td></tr></tbody></table>' +
+    '<div class="section-title">B. Campaign Details</div><table class="blank"><tr><td>' + esc(compact(data.remark || data.detail || '-', 160)) + '</td></tr><tr><td></td></tr></table>' +
+    '<div class="section-title">C. Action Timeline</div><table class="blank"><colgroup><col><col style="width:22mm"><col style="width:22mm"></colgroup><tr><td>' + esc(compact(data.workIn || '-', 90)) + '</td><td class="c">When</td><td class="c">By whom</td></tr><tr><td></td><td></td><td></td></tr></table>' +
+    '<div class="remarks"><b>Remarks:</b> ' + esc(compact(data.remark || '', 180)) + '</div>' +
+    '<div class="link"><b>Link:</b> &nbsp; ' + esc(compact(links, 170)) + '</div>' +
+    '<div class="signs"><div class="sign">Requested by<div class="sigline"></div><div class="sigdate">Date&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/</div></div><div class="sign">Approved by<div class="sigline"></div><div class="sigdate">Date&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/</div></div></div>' +
+    '</div></body></html>');
   win.document.close();
   win.focus();
   setTimeout(function(){ win.print(); }, 250);
