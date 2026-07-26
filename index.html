@@ -1605,11 +1605,15 @@ function goalFor(f, rows){
   }
   return KPI_MONTHLY * months;
 }
-function goalNote(eng, goal){
-  if(!goal) return '';
-  return eng >= goal
-    ? '<div class="goal ok">' + fmt(eng - goal) + ' above the ' + engShort(goal) + ' KPI</div>'
-    : '<div class="goal">' + fmt(goal - eng) + ' to go - KPI ' + engShort(goal) + '</div>';
+  function goalNote(eng, goal){
+    if(!goal) return '';
+    var pct = Math.min(100, Math.round((eng / goal) * 100));
+    var left = Math.max(0, 100 - pct);
+    return eng >= goal
+    ? '<div class="target-progress"><span style="width:100%"></span></div>' +
+      '<div class="goal ok">' + pct + '% to KPI / ' + fmt(eng - goal) + ' above</div>'
+    : '<div class="target-progress"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="goal"><span class="target-left">' + pct + '% to KPI</span> / <span class="target-done">' + left + '% left</span></div>';
 }
 function statCard(cls, label, value, note, extra){
   return '<div class="stat ' + (cls || '') + '">' +
