@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -99,7 +99,27 @@ button,input,select,textarea{font:inherit;color:inherit}
   min-width:110px;font-size:13px;
 }
 .field input.search{min-width:190px}
-.spacer{flex:1}
+.multi{position:relative;min-width:150px}
+.multi-btn{
+  background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 34px 7px 10px;
+  min-width:150px;width:100%;font-size:13px;text-align:left;cursor:pointer;color:var(--text);position:relative;
+}
+.multi-btn::after{
+  content:'v';position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:10px;color:var(--muted);
+}
+.multi.open .multi-btn{border-color:var(--focus);box-shadow:0 0 0 2px rgba(4,120,120,.12)}
+.multi-menu{
+  display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:60;width:230px;max-height:270px;overflow:auto;
+  background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 34px -18px rgba(18,33,47,.45);padding:8px;
+}
+.multi.open .multi-menu{display:block}
+.multi-actions{display:flex;gap:6px;padding:6px 6px 8px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.multi-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 7px;font-size:11.5px;cursor:pointer;color:var(--text)}
+.multi-actions button:hover{border-color:#A9B7C4}
+.multi-option{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap}
+.multi-option:hover{background:#F3F6F9}
+.multi-option input{min-width:auto;width:14px;height:14px;margin:0;accent-color:var(--teal)}.spacer{flex:1}
 .btn{
   border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;
   cursor:pointer;font-size:13px;font-weight:500;
@@ -503,7 +523,7 @@ body.gated .gate{display:flex}
           </div>
           <div class="field">
             <label for="rPlace">Location</label>
-            <select id="rPlace"></select>
+            <div class="multi" id="rPlaceBox"><button class="multi-btn" type="button" id="rPlaceBtn" aria-expanded="false">All locations</button><div class="multi-menu" id="rPlaceMenu"></div></div>
           </div>
           <div class="field">
             <label for="rSearch">Search</label>
@@ -577,7 +597,7 @@ body.gated .gate{display:flex}
           </div>
           <div class="field">
             <label for="aPlace">Location</label>
-            <select id="aPlace"></select>
+            <div class="multi" id="aPlaceBox"><button class="multi-btn" type="button" id="aPlaceBtn" aria-expanded="false">All locations</button><div class="multi-menu" id="aPlaceMenu"></div></div>
           </div>
           <div class="spacer"></div>
           <button class="btn ghost" type="button" id="btnAnalyticsThisMonth">This month</button>
@@ -1095,8 +1115,8 @@ var now = new Date();
 var state = {
   records: [],
   view: 'records',
-  rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', q:'' },
-  af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all' },
+  rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
+  af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
   tf: { year:String(now.getFullYear()) },
   sort: { records:null, analytics:null, targets:null },
   targets: {},
@@ -1108,10 +1128,24 @@ var state = {
 };
 
 function placeKey(v){ return String(v == null ? '' : v).trim(); }
+function selectedPlaces(f){
+  if(Array.isArray(f.places)) return f.places.filter(Boolean);
+  if(f.place && f.place !== 'all') return [f.place];
+  return [];
+}
+function placeFilterLabel(f){
+  var picked = selectedPlaces(f);
+  if(!picked.length) return 'All locations';
+  if(picked.length === 1) return picked[0] === '__none' ? 'no location' : picked[0];
+  return picked.length + ' locations';
+}
 function placeOk(r, f){
-  if(!f.place || f.place === 'all') return true;
-  if(f.place === '__none') return placeKey(r.place) === '';
-  return placeKey(r.place).toLowerCase() === String(f.place).toLowerCase();
+  var picked = selectedPlaces(f);
+  if(!picked.length) return true;
+  var here = placeKey(r.place).toLowerCase();
+  return picked.some(function(v){
+    return v === '__none' ? here === '' : here === String(v).toLowerCase();
+  });
 }
 function places(){
   var seen = {}, out = [], blank = false;
@@ -1213,6 +1247,23 @@ function fillSelect(el, opts, value){
     return '<option value="' + o[0] + '"' + (String(o[0]) === String(value) ? ' selected' : '') + '>' + o[1] + '</option>';
   }).join('');
 }
+function renderPlaceMulti(prefix, opts, f){
+  var box = document.getElementById(prefix + 'PlaceBox');
+  var btn = document.getElementById(prefix + 'PlaceBtn');
+  var menu = document.getElementById(prefix + 'PlaceMenu');
+  if(!box || !btn || !menu) return;
+  var picked = selectedPlaces(f);
+  var pickedMap = {};
+  picked.forEach(function(v){ pickedMap[String(v).toLowerCase()] = true; });
+  btn.textContent = placeFilterLabel(f);
+  menu.innerHTML =
+    '<div class="multi-actions"><button type="button" data-place-all="' + prefix + '">All</button><button type="button" data-place-clear="' + prefix + '">Clear</button></div>' +
+    opts.filter(function(o){ return o[0] !== 'all'; }).map(function(o){
+      var key = String(o[0]);
+      var checked = pickedMap[key.toLowerCase()] ? ' checked' : '';
+      return '<label class="multi-option"><input type="checkbox" value="' + esc(key) + '"' + checked + ' data-place-pick="' + prefix + '"> <span>' + esc(o[1]) + '</span></label>';
+    }).join('');
+}
 function buildFilters(){
   var ys = years().map(function(y){ return [y, y]; });
   var ms = [['all','All months']].concat(MONTHS.map(function(m,i){ return [i+1, m]; }));
@@ -1223,11 +1274,13 @@ function buildFilters(){
   var ps = [['all','All locations']].concat(pl.map(function(v){ return [v, v]; }));
   if(pl.blank) ps.push(['__none','(no location)']);
   var known = {}; ps.forEach(function(o){ known[String(o[0])] = 1; });
-  if(!known[String(state.rf.place)]) state.rf.place = 'all';
-  if(!known[String(state.af.place)]) state.af.place = 'all';
+  state.rf.places = selectedPlaces(state.rf).filter(function(v){ return known[String(v)]; });
+  state.af.places = selectedPlaces(state.af).filter(function(v){ return known[String(v)]; });
+  state.rf.place = state.rf.places.length ? state.rf.places[0] : 'all';
+  state.af.place = state.af.places.length ? state.af.places[0] : 'all';
 
-  fillSelect(document.getElementById('rPlace'), ps, state.rf.place);
-  fillSelect(document.getElementById('aPlace'), ps, state.af.place);
+  renderPlaceMulti('r', ps, state.rf);
+  renderPlaceMulti('a', ps, state.af);
   fillSelect(document.getElementById('rYear'), [['all','All years']].concat(ys), state.rf.year);
   fillSelect(document.getElementById('rMonth'), ms, state.rf.month);
   fillSelect(document.getElementById('rDay'), ds, state.rf.day);
@@ -1428,7 +1481,7 @@ function renderChart(){
     (b.mode === 'year' ? 'Engagement by year' :
      b.mode === 'month' ? 'Engagement by month - ' + f.year :
      'Engagement by day - ' + MONTHS[+f.month - 1] + ' ' + f.year) +
-    (f.place && f.place !== 'all' ? ' - ' + (f.place === '__none' ? 'no location' : f.place) : '');
+    (selectedPlaces(f).length ? ' - ' + placeFilterLabel(f) : '');
 
   var crumbs = ['<span>View:</span>', '<button type="button" data-crumb="all">All years</button>'];
   if(f.year !== 'all') crumbs.push('<span>/</span><button type="button" data-crumb="year">' + f.year + '</button>');
@@ -1485,7 +1538,7 @@ function renderAnalytics(){
     : (f.day === 'all' ? MONTHS[+f.month - 1] + ' ' + f.year
     : pad(+f.day) + ' ' + MONTHS[+f.month - 1] + ' ' + f.year));
   document.getElementById('breakTitle').textContent = 'Who was hired - ' + scope +
-    (f.place && f.place !== 'all' ? ' - ' + (f.place === '__none' ? 'no location' : f.place) : '');
+    (selectedPlaces(f).length ? ' - ' + placeFilterLabel(f) : '');
   document.getElementById('aCount').textContent = rows.length + ' booking' + (rows.length === 1 ? '' : 's');
 
   var body = document.getElementById('aBody');
@@ -1865,7 +1918,7 @@ function saveRecord(){
 /* A saved record that falls outside the current date filter looks like it
    vanished, so move the filter to wherever the record actually lives. */
 function ensureVisible(r){
-  if(!placeOk(r, state.rf)) state.rf.place = 'all';
+  if(!placeOk(r, state.rf)){ state.rf.places = []; state.rf.place = 'all'; }
   if(matches(r, state.rf) && (!state.rf.q || filtered(state.rf, state.rf.q).indexOf(r) > -1)) return false;
   var p = dateParts(r[state.rf.basis]);
   if(!p){
@@ -2004,10 +2057,53 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function(
   });
 });
 
-['rBasis','rYear','rMonth','rDay','rPlace'].forEach(function(id){
+['rBasis','rYear','rMonth','rDay'].forEach(function(id){
   document.getElementById(id).addEventListener('change', function(e){
-    state.rf[{ rBasis:'basis', rYear:'year', rMonth:'month', rDay:'day', rPlace:'place' }[id]] = e.target.value;
+    state.rf[{ rBasis:'basis', rYear:'year', rMonth:'month', rDay:'day' }[id]] = e.target.value;
     renderRecords();
+  });
+});
+function setupPlaceMulti(prefix, filter, after){
+  var box = document.getElementById(prefix + 'PlaceBox');
+  var btn = document.getElementById(prefix + 'PlaceBtn');
+  var menu = document.getElementById(prefix + 'PlaceMenu');
+  if(!box || !btn || !menu) return;
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    box.classList.toggle('open');
+    btn.setAttribute('aria-expanded', box.classList.contains('open') ? 'true' : 'false');
+  });
+  menu.addEventListener('click', function(e){
+    e.stopPropagation();
+    var all = e.target.closest('[data-place-all]');
+    var clear = e.target.closest('[data-place-clear]');
+    if(all || clear){
+      filter.places = [];
+      filter.place = 'all';
+      after();
+      return;
+    }
+    if(e.target.matches('[data-place-pick]')){
+      var val = e.target.value;
+      var picked = selectedPlaces(filter).slice();
+      var lower = String(val).toLowerCase();
+      var exists = picked.some(function(v){ return String(v).toLowerCase() === lower; });
+      if(e.target.checked && !exists) picked.push(val);
+      if(!e.target.checked) picked = picked.filter(function(v){ return String(v).toLowerCase() !== lower; });
+      filter.places = picked;
+      filter.place = picked.length ? picked[0] : 'all';
+      after();
+    }
+  });
+}
+setupPlaceMulti('r', state.rf, function(){ render(); });
+setupPlaceMulti('a', state.af, function(){ render(); });
+document.addEventListener('click', function(){
+  ['r','a'].forEach(function(prefix){
+    var box = document.getElementById(prefix + 'PlaceBox');
+    var btn = document.getElementById(prefix + 'PlaceBtn');
+    if(box) box.classList.remove('open');
+    if(btn) btn.setAttribute('aria-expanded','false');
   });
 });
 document.getElementById('rSearch').addEventListener('input', function(e){
@@ -2109,9 +2205,9 @@ document.getElementById('view-targets').addEventListener('click', function(e){
   persistTargets();
   render();
 });
-['aBasis','aYear','aMonth','aDay','aPlace'].forEach(function(id){
+['aBasis','aYear','aMonth','aDay'].forEach(function(id){
   document.getElementById(id).addEventListener('change', function(e){
-    var key = { aBasis:'basis', aYear:'year', aMonth:'month', aDay:'day', aPlace:'place' }[id];
+    var key = { aBasis:'basis', aYear:'year', aMonth:'month', aDay:'day' }[id];
     state.af[key] = e.target.value;
     if(key === 'year' && e.target.value === 'all'){ state.af.month = 'all'; state.af.day = 'all'; }
     if(key === 'month' && e.target.value === 'all'){ state.af.day = 'all'; }
@@ -2131,7 +2227,7 @@ document.getElementById('btnAnalyticsThisMonth').addEventListener('click', funct
   render();
 });
 document.getElementById('btnReset').addEventListener('click', function(){
-  state.af.year = 'all'; state.af.month = 'all'; state.af.day = 'all'; state.af.place = 'all';
+  state.af.year = 'all'; state.af.month = 'all'; state.af.day = 'all'; state.af.places = []; state.af.place = 'all';
   render();
 });
 document.getElementById('btnAdd').addEventListener('click', function(){ openRecord(null); });
@@ -2200,7 +2296,7 @@ document.getElementById('view-records').addEventListener('click', function(e){
   else if(t.dataset.act === 'add') openRecord(null);
   else if(t.dataset.act === 'import') pickImportFile();
   else if(t.dataset.act === 'demo'){ var d = demo(); state.records = state.records.concat(d); saveMany(d); render(); toast('Sample data loaded'); }
-  else if(t.dataset.act === 'clearfilter'){ state.rf.year = 'all'; state.rf.month = 'all'; state.rf.day = 'all'; state.rf.place = 'all'; render(); }
+  else if(t.dataset.act === 'clearfilter'){ state.rf.year = 'all'; state.rf.month = 'all'; state.rf.day = 'all'; state.rf.places = []; state.rf.place = 'all'; render(); }
 });
 document.getElementById('rTable').addEventListener('click', function(e){
   if(e.target.closest('button,input,select,textarea,a')) return;
@@ -2434,4 +2530,5 @@ if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
 </script>
 </body>
 </html>
+
 
