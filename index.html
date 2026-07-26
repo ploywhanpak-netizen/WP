@@ -188,8 +188,28 @@ thead th{
 }
 thead th[data-sort]{cursor:pointer;user-select:none}
 thead th[data-sort]:hover{color:var(--text);background:#EEF3F7}
-thead th.sort-asc::after{content:' A-Z';color:var(--clay);font-size:9px}
-thead th.sort-desc::after{content:' Z-A';color:var(--clay);font-size:9px}
+thead th[data-sort]::after{
+  content:'';
+  display:inline-block;
+  width:0;
+  height:0;
+  margin-left:7px;
+  border-left:4px solid transparent;
+  border-right:4px solid transparent;
+  border-top:5px solid #9AAABD;
+  opacity:.35;
+  vertical-align:middle;
+}
+thead th.sort-asc::after{
+  border-top:0;
+  border-bottom:6px solid var(--clay);
+  opacity:1;
+}
+thead th.sort-desc::after{
+  border-bottom:0;
+  border-top:6px solid var(--clay);
+  opacity:1;
+}
 tbody td{padding:11px 12px;border-bottom:1px solid #EDF1F5;vertical-align:middle}
 tbody tr:hover{background:#FAFCFE}
 td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -547,7 +567,7 @@ body.gated .gate{display:flex}
       <button type="button" data-view="targets"><span class="idx">03</span> Target</button>
       <button type="button" data-view="budget"><span class="idx">04</span> Budget</button>
       <button type="button" data-view="billing"><span class="idx">05</span> Billing</button>
-    <button type="button" data-view="settings"><span class="idx">06</span> Builder</button>
+      <button type="button" data-view="settings"><span class="idx">06</span> Settings</button>
     </nav>
     <div class="side-foot">
       <p class="foot-label">Backup</p>
@@ -765,8 +785,8 @@ body.gated .gate{display:flex}
     <!-- ============ BILLING ============ -->
     <section class="view" id="view-billing">
       <header class="topbar">
-        <h2>Billing / คำขออนุมัติ</h2>
-        <p class="sub">Track PR requests, suppliers, invoices, receipts and payment evidence.</p>
+        <h2>PR requests</h2>
+        <p class="sub">Track purchase requests, suppliers, invoices, receipts and payment evidence.</p>
         <div class="filters">
           <div class="field">
             <label for="bSearch">Search</label>
@@ -784,7 +804,7 @@ body.gated .gate{display:flex}
         <div class="stats" id="bStats"></div>
         <div class="card billing-card">
           <div class="card-head">
-            <h3>Approval Requests</h3>
+            <h3>PR requests</h3>
             <span class="hint" id="bCount"></span>
           </div>
           <div class="table-wrap">
@@ -804,8 +824,8 @@ body.gated .gate{display:flex}
     <!-- ============ SETTINGS ============ -->
     <section class="view" id="view-settings">
       <header class="topbar">
-      <h2>Builder Settings</h2>
-        <p class="sub">Builder settings for dropdowns and billing fields.</p>
+      <h2>Settings</h2>
+        <p class="sub">Manage dropdowns and billing fields.</p>
         <div class="filters">
           <div class="field">
             <label for="expenseTypeInput">ประเภทค่าใช้จ่าย</label>
@@ -817,13 +837,13 @@ body.gated .gate{display:flex}
       <div class="content">
         <div class="card">
           <div class="card-head">
-            <h3>Billing builder</h3>
-            <span class="hint">Used in Billing / คำขออนุมัติ</span>
+            <h3>Billing settings</h3>
+            <span class="hint">Used in PR requests</span>
           </div>
           <div class="table-wrap">
             <table id="expenseTypeTable">
               <thead>
-                <tr><th>ประเภทค่าใช้จ่าย</th><th></th></tr>
+                <tr><th data-sort="label">ประเภทค่าใช้จ่าย</th><th></th></tr>
               </thead>
               <tbody id="expenseTypeBody"></tbody>
             </table>
@@ -1347,7 +1367,7 @@ var state = {
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
   tf: { year:String(now.getFullYear()) },
-  sort: { records:null, analytics:null, targets:null },
+  sort: { records:null, analytics:null, targets:null, budget:null, billing:null, settings:null },
   targets: {},
   settings: defaultSettings(),
   editTarget: null,
@@ -1952,6 +1972,13 @@ function sortTargetValue(r, key){
   if(/^m\d+$/.test(key)) return num((r.sales || [])[+key.slice(1)]);
   return '';
 }
+function sortBudgetValue(r, key){
+  if(key === 'month') return r.meta ? r.meta.label : '';
+  if(key === 'budget') return num(r.budget);
+  if(key === 'spent') return num(r.spent);
+  if(key === 'left') return num(r.left);
+  return '';
+}
 function monthMeta(label, i){
   var parts = String(label || '').trim().split(/\s+/);
   var m = MON.findIndex(function(x){ return x.toLowerCase() === String(parts[0] || '').slice(0,3).toLowerCase(); }) + 1;
@@ -1994,6 +2021,7 @@ function renderBudget(rows, monthLabels){
     used += spent;
     return { meta:meta, items:items, budget:monthBudget, spent:spent, left:Math.max(0, monthBudget - spent) };
   });
+  monthRows = sortRows(monthRows, state.sort.budget, sortBudgetValue);
   var left = Math.max(0, budget - used);
   var usedPct = budget ? Math.min(100, Math.round((used / budget) * 1000) / 10) : 0;
   var leftPct = budget ? Math.max(0, Math.round(((budget - used) / budget) * 1000) / 10) : 0;
@@ -2008,7 +2036,8 @@ function renderBudget(rows, monthLabels){
     '<div class="stat"><div class="k">Remaining</div><div class="v">' + money(left) + '</div><div class="n">Available budget</div></div>';
   document.getElementById('tCardTitle').textContent = 'Part Marketing Budget';
   document.getElementById('tCount').textContent = state.tf.year + ' - ' + pct + '% from target';
-  document.getElementById('tHead').innerHTML = '<tr><th>Month</th><th class="num">Budget / month</th><th class="num">Used this month</th><th class="num">Available this month</th></tr>';
+  document.getElementById('tHead').innerHTML = '<tr><th data-sort="month">Month</th><th class="num" data-sort="budget">Budget / month</th><th class="num" data-sort="spent">Used this month</th><th class="num" data-sort="left">Available this month</th></tr>';
+  markSort(document.querySelector('.target-table'), state.sort.budget);
   document.getElementById('tEmpty').innerHTML = '';
   document.getElementById('tBody').innerHTML = monthRows.map(function(r, i){
     var key = String(r.meta.year) + '-' + pad(r.meta.month);
@@ -2122,6 +2151,10 @@ function filteredBilling(){
     });
   }
   return list;
+}
+function sortBillingValue(r, key){
+  if(key === 'volume' || key === 'priceUnit' || key === 'amount') return num(r[key]);
+  return r[key] || '';
 }
 function billingUniqueCount(rows, key){
   var seen = {};
@@ -2257,11 +2290,12 @@ function collectBillingItems(){
 }
 function renderBilling(){
   var fields = billingFields();
-  var rows = filteredBilling();
+  var rows = sortRows(filteredBilling(), state.sort.billing, sortBillingValue);
   document.getElementById('bSearch').value = state.bf.q || '';
   document.getElementById('bHead').innerHTML = fields.map(function(f){
-    return '<th' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>';
+    return '<th data-sort="' + esc(f.key) + '"' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>';
   }).join('') + '<th class="actions">Actions</th>';
+  markSort(document.getElementById('bTable'), state.sort.billing);
   document.getElementById('bCount').textContent = rows.length + ' shown of ' + (state.billing || []).length + ' total';
   var total = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
   document.getElementById('bStats').innerHTML = [
@@ -2298,7 +2332,7 @@ function openBilling(id){
     '<div class="billing-form-grid">' +
       billingControl('prNo', 'PR No.', get('prNo'), { placeholder:'MK2026-001' }) +
       billingControl('supplier', 'Supplier', get('supplier'), { highlight:true, placeholder:'กรอกชื่อบริษัท / ชื่อผู้ขาย' }) +
-      billingControl('expenseType', 'ประเภทค่าใช้จ่าย', get('expenseType'), { select:true, options:expenseTypeOptions(get('expenseType')), help:'เพิ่มตัวเลือกได้ที่ Builder > Settings' }) +
+      billingControl('expenseType', 'ประเภทค่าใช้จ่าย', get('expenseType'), { select:true, options:expenseTypeOptions(get('expenseType')), help:'เพิ่มตัวเลือกได้ที่ Settings' }) +
       billingControl('company', 'Company', get('company'), { select:true, options:fieldOptions('company', get('company'), ['WHANPAK', 'Bloom', 'Pancake Cafe']) }) +
       billingControl('store', 'Store', get('store'), { select:true, options:fieldOptions('store', get('store'), ['Bloom', 'Pancake', 'WHANPAK']) }) +
       billingControl('venuePlacement', 'Venue/Placement', get('venuePlacement'), { placeholder:'สถานที่/สื่อ' }) +
@@ -2453,13 +2487,14 @@ function saveBillingCell(cell){
   toast('Saved');
 }
 function renderSettings(){
-  var list = expenseTypes();
+  var list = sortRows(expenseTypes().map(function(v, i){ return { label:v, index:i }; }), state.sort.settings, function(r){ return r.label; });
   var body = document.getElementById('expenseTypeBody');
   document.getElementById('expenseTypeInput').value = '';
-  body.innerHTML = list.map(function(v, i){
-    return '<tr><td contenteditable="true" spellcheck="false" tabindex="0" data-expense-edit="' + i + '">' + esc(v) + '</td>' +
-      '<td class="actions"><button class="icon-btn del" type="button" data-expense-del="' + i + '">Delete</button></td></tr>';
+  body.innerHTML = list.map(function(item){
+    return '<tr><td contenteditable="true" spellcheck="false" tabindex="0" data-expense-edit="' + item.index + '">' + esc(item.label) + '</td>' +
+      '<td class="actions"><button class="icon-btn del" type="button" data-expense-del="' + item.index + '">Delete</button></td></tr>';
   }).join('') || '<tr><td class="sub" colspan="2">No expense types yet.</td></tr>';
+  markSort(document.getElementById('expenseTypeTable'), state.sort.settings);
 }
 function addExpenseType(){
   var input = document.getElementById('expenseTypeInput');
@@ -2922,7 +2957,7 @@ document.getElementById('view-targets').addEventListener('click', function(e){
   }
   var th = e.target.closest('th[data-sort]');
   if(th){
-    setSort('targets', th.dataset.sort);
+    setSort(state.view === 'budget' ? 'budget' : 'targets', th.dataset.sort);
     renderTargets();
     return;
   }
@@ -2987,6 +3022,12 @@ document.getElementById('bSearch').addEventListener('input', function(e){
   renderBilling();
 });
 document.getElementById('bTable').addEventListener('click', function(e){
+  var th = e.target.closest('th[data-sort]');
+  if(th){
+    setSort('billing', th.dataset.sort);
+    renderBilling();
+    return;
+  }
   var edit = e.target.closest('[data-billing-edit]');
   if(edit){
     openBilling(edit.dataset.billingEdit);
@@ -3026,6 +3067,12 @@ document.getElementById('expenseTypeTable').addEventListener('keydown', function
   }
 });
 document.getElementById('expenseTypeTable').addEventListener('click', function(e){
+  var th = e.target.closest('th[data-sort]');
+  if(th){
+    setSort('settings', th.dataset.sort);
+    renderSettings();
+    return;
+  }
   var del = e.target.closest('[data-expense-del]');
   if(!del) return;
   var list = expenseTypes();
