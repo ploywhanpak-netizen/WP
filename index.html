@@ -163,21 +163,19 @@ button,input,select,textarea{font:inherit;color:inherit}
 .table-wrap{overflow:auto}
 .billing-card .table-wrap{max-height:520px;border-top:1px solid var(--line)}
 table{border-collapse:collapse;width:100%;min-width:1080px}
-.billing-table{min-width:2500px}
+.billing-table{min-width:980px}
 .billing-table th,.billing-table tbody td{min-width:120px;white-space:nowrap}
 .billing-table th:nth-child(1),.billing-table tbody td:nth-child(1){min-width:110px}
 .billing-table th:nth-child(2),.billing-table tbody td:nth-child(2){min-width:110px}
 .billing-table th:nth-child(3),.billing-table tbody td:nth-child(3){min-width:160px}
 .billing-table th:nth-child(4),.billing-table tbody td:nth-child(4){min-width:300px}
-.billing-table th:nth-child(5),.billing-table tbody td:nth-child(5){min-width:260px}
-.billing-table th:nth-child(6),.billing-table tbody td:nth-child(6){min-width:240px}
+.billing-table th:nth-child(5),.billing-table tbody td:nth-child(5){min-width:130px}
+.billing-table th:nth-child(6),.billing-table tbody td:nth-child(6){min-width:150px}
 .billing-table tbody td{
   max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.billing-table tbody tr{height:52px;max-height:52px}
-.billing-table tbody td{height:52px;line-height:1.25}
-.billing-table tbody td:nth-child(5),
-.billing-table tbody td:nth-child(7){white-space:nowrap;min-width:220px}
+.billing-table tbody tr{height:44px;max-height:44px}
+.billing-table tbody td{height:44px;line-height:1.25}
 .billing-table tbody tr{cursor:pointer}
 .billing-table tbody tr:hover td{background:#FAFCFE}
 .billing-table td.actions{min-width:130px;white-space:nowrap}
@@ -2142,6 +2140,17 @@ function billingFields(){
     { key:'withholdingTax', label:'ใบหัก ณ ที่จ่าย (WH)' }
   ];
 }
+function billingTableFields(){
+  var visible = {
+    prNo: true,
+    store: true,
+    expenseType: true,
+    supplier: true,
+    amount: true,
+    company: true
+  };
+  return billingFields().filter(function(f){ return visible[f.key]; });
+}
 function filteredBilling(){
   var q = String(state.bf.q || '').trim().toLowerCase();
   var list = (state.billing || []).slice();
@@ -2289,7 +2298,7 @@ function collectBillingItems(){
   }).filter(function(it){ return it.name || it.volume || it.priceUnit || it.amount; });
 }
 function renderBilling(){
-  var fields = billingFields();
+  var fields = billingTableFields();
   var rows = sortRows(filteredBilling(), state.sort.billing, sortBillingValue);
   document.getElementById('bSearch').value = state.bf.q || '';
   document.getElementById('bHead').innerHTML = fields.map(function(f){
