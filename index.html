@@ -160,7 +160,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .card-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .card-head h3{font-family:var(--display);font-size:14.5px;margin:0;font-weight:600}
 .card-head .hint{font-size:11.5px;color:var(--muted)}
-.table-wrap{overflow-x:auto}
+.table-wrap{overflow:auto}
+.billing-card .table-wrap{max-height:520px;border-top:1px solid var(--line)}
 table{border-collapse:collapse;width:100%;min-width:1080px}
 .billing-table{min-width:2500px}
 .billing-table th,.billing-table tbody td{min-width:120px;white-space:nowrap}
@@ -170,13 +171,15 @@ table{border-collapse:collapse;width:100%;min-width:1080px}
 .billing-table th:nth-child(4),.billing-table tbody td:nth-child(4){min-width:300px}
 .billing-table th:nth-child(5),.billing-table tbody td:nth-child(5){min-width:260px}
 .billing-table th:nth-child(6),.billing-table tbody td:nth-child(6){min-width:240px}
+.billing-table tbody td{
+  max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.billing-table tbody tr{height:52px;max-height:52px}
+.billing-table tbody td{height:52px;line-height:1.25}
 .billing-table tbody td:nth-child(5),
-.billing-table tbody td:nth-child(7){white-space:normal;min-width:220px}
-.billing-table [contenteditable="true"]{cursor:text;border-radius:6px;outline:0}
-.billing-table [contenteditable="true"]:hover{background:#F7FAFC;box-shadow:inset 0 0 0 1px #D8E0E8}
-.billing-table [contenteditable="true"]:focus{background:#fff;box-shadow:inset 0 0 0 2px rgba(4,120,120,.24)}
-.cell-select{width:100%;min-width:145px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text);padding:6px 8px;font:inherit}
-.cell-select:focus{outline:2px solid rgba(4,120,120,.22);border-color:var(--focus)}
+.billing-table tbody td:nth-child(7){white-space:nowrap;min-width:220px}
+.billing-table tbody tr{cursor:pointer}
+.billing-table tbody tr:hover td{background:#FAFCFE}
 .billing-table td.actions{min-width:130px;white-space:nowrap}
 thead th{
   position:sticky;top:0;background:#F3F6F9;text-align:left;
@@ -319,6 +322,39 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .f input:focus,.f textarea:focus{border-color:var(--focus)}
 .f .help{font-size:11px;color:var(--muted)}
 .wide-field{grid-column:span 2}
+.billing-modal{max-width:760px}
+.billing-modal .modal-head{
+  background:var(--ink);color:#fff;border-bottom:0;border-radius:12px 12px 0 0;
+}
+.billing-modal .modal-head p{color:#AFC1D1}
+.billing-modal .modal-head .x{color:#fff}
+.billing-modal .modal-body{background:#F5F8FB}
+.billing-modal .modal-foot{background:#F5F8FB}
+.billing-modal .modal-foot .btn.primary{background:var(--teal);border-color:var(--teal);min-width:240px}
+.billing-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.billing-span{grid-column:1 / -1}
+.billing-note{margin-top:4px;color:var(--muted);font-size:10.5px}
+.billing-soft{border:1px solid #D7E0E8;background:#fff;border-radius:10px;padding:12px;margin-top:14px}
+.billing-soft h4{
+  margin:0 0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+}
+.highlight-input{background:#FFF8CD!important;border-color:#EEDC8B!important}
+.billing-items-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.billing-add-line{border:0;background:var(--teal-soft);color:var(--teal);border-radius:7px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+.billing-item-head,.billing-item-row{display:grid;grid-template-columns:1.6fr .45fr .75fr .75fr 34px;gap:8px;align-items:center}
+.billing-item-head{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:6px;padding:0 8px;
+}
+.billing-item-row{margin-bottom:8px}
+.billing-item-row input{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text);padding:8px 9px;width:100%;font:inherit}
+.billing-item-row input[data-item-field="amount"]{text-align:right;font-family:var(--mono)}
+.billing-total{display:flex;justify-content:flex-end;gap:12px;align-items:baseline;margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--teal);font-weight:700}
+.billing-total strong{font-size:13px}
+.billing-remove-line{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;cursor:pointer}
+.billing-remove-line:hover{color:var(--red)}
+.billing-attach{border:1px dashed #C9D6E2;border-radius:10px;background:#FAFCFE;padding:12px;margin-top:12px}
+.billing-attach-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 fieldset{border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px}
 legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 6px}
 
@@ -429,6 +465,14 @@ body.gated .gate{display:flex}
   .modal-head p{font-size:11.5px}
   .link-top{flex-wrap:wrap}
   .link-top input,.link-url{flex:1 1 100%;order:-1}
+  .billing-form-grid,.billing-attach-grid{grid-template-columns:1fr}
+  .billing-span{grid-column:auto}
+  .billing-item-head{display:none}
+  .billing-item-row{grid-template-columns:1fr 1fr}
+  .billing-item-row input:first-child{grid-column:1 / -1}
+  .billing-remove-line{justify-self:end}
+  .billing-modal .modal-foot{flex-wrap:wrap}
+  .billing-modal .modal-foot .btn.primary{min-width:0;flex:1}
 }
 
 /* phone: turn each table row into a card */
@@ -737,7 +781,7 @@ body.gated .gate{display:flex}
       </header>
       <div class="content">
         <div class="stats" id="bStats"></div>
-        <div class="card">
+        <div class="card billing-card">
           <div class="card-head">
             <h3>Approval Requests</h3>
             <span class="hint" id="bCount"></span>
@@ -853,20 +897,20 @@ body.gated .gate{display:flex}
 
 <!-- ============ BILLING MODAL ============ -->
 <div class="backdrop" id="mdBilling">
-  <div class="modal xwide" role="dialog" aria-modal="true" aria-labelledby="mdBillingTitle">
+  <div class="modal xwide billing-modal" role="dialog" aria-modal="true" aria-labelledby="mdBillingTitle">
     <div class="modal-head">
       <div>
-        <h3 id="mdBillingTitle">Add approval request</h3>
-        <p>PR No. and Supplier are optional, but useful for searching later.</p>
+        <h3 id="mdBillingTitle">สร้างใบคำขออนุมัติ</h3>
+        <p>กรอกข้อมูล PR รายการค่าใช้จ่าย เอกสาร และผู้อนุมัติไว้ในที่เดียว.</p>
       </div>
       <button class="x" type="button" data-close aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="grid4" id="billingForm"></div>
+      <div id="billingForm"></div>
     </div>
     <div class="modal-foot">
       <button class="btn ghost" type="button" data-close>Cancel</button>
-      <button class="btn primary" type="button" id="btnSaveBilling">Save request</button>
+      <button class="btn primary" type="button" id="btnSaveBilling">บันทึกรายการ</button>
     </div>
   </div>
 </div>
@@ -1072,6 +1116,7 @@ function billingDocBody(r){
   billingFields().forEach(function(f){
     out[f.key] = f.money ? num(r[f.key]) : (r[f.key] || '');
   });
+  if(Array.isArray(r.items)) out.items = r.items;
   out.updatedAt = Date.now();
   out.updatedBy = whoami();
   return out;
@@ -2016,6 +2061,7 @@ function billingFields(){
     { key:'description', label:'Description', wide:true },
     { key:'venuePlacement', label:'Venue/Placement' },
     { key:'detail', label:'Detail', wide:true },
+    { key:'remark', label:'Remark', wide:true },
     { key:'projectDuration', label:'Project Duration' },
     { key:'workIn', label:'Work in' },
     { key:'volume', label:'Volume' },
@@ -2101,6 +2147,81 @@ function expenseTypeOptions(value){
     return '<option value="' + esc(v) + '"' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>';
   }).join('');
 }
+function fieldOptions(key, value, fallback){
+  var list = (fallback || []).slice();
+  (state.billing || []).forEach(function(r){
+    var v = String(r[key] || '').trim();
+    if(v && list.map(function(x){ return x.toLowerCase(); }).indexOf(v.toLowerCase()) === -1) list.push(v);
+  });
+  var current = String(value || '').trim();
+  if(current && list.map(function(x){ return x.toLowerCase(); }).indexOf(current.toLowerCase()) === -1) list.unshift(current);
+  return '<option value="">-- เลือกข้อมูล --</option>' + list.map(function(v){
+    return '<option value="' + esc(v) + '"' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>';
+  }).join('');
+}
+function billingControl(key, label, value, opts){
+  opts = opts || {};
+  var cls = 'f' + (opts.span ? ' billing-span' : '');
+  var id = 'b_' + key;
+  var help = opts.help ? '<div class="billing-note">' + esc(opts.help) + '</div>' : '';
+  if(opts.textarea){
+    return '<div class="' + cls + '"><label for="' + esc(id) + '">' + esc(label) + '</label><textarea id="' + esc(id) + '" placeholder="' + esc(opts.placeholder || '') + '"' + (opts.rows ? ' rows="' + opts.rows + '"' : '') + '>' + esc(value || '') + '</textarea>' + help + '</div>';
+  }
+  if(opts.select){
+    return '<div class="' + cls + '"><label for="' + esc(id) + '">' + esc(label) + '</label><select id="' + esc(id) + '">' + opts.options + '</select>' + help + '</div>';
+  }
+  return '<div class="' + cls + '"><label for="' + esc(id) + '">' + esc(label) + '</label><input id="' + esc(id) + '" class="' + (opts.highlight ? 'highlight-input' : '') + '" type="' + esc(opts.type || 'text') + '" value="' + esc(value || '') + '" placeholder="' + esc(opts.placeholder || '') + '" /></div>';
+}
+function billingDraftItems(r){
+  if(r && Array.isArray(r.items) && r.items.length){
+    return r.items.map(function(it){
+      return {
+        name: it.name || it.item || '',
+        volume: it.volume || '',
+        priceUnit: num(it.priceUnit),
+        amount: num(it.amount)
+      };
+    });
+  }
+  if(r && (r.description || r.volume || r.priceUnit || r.amount)){
+    return [{ name:r.description || '', volume:r.volume || '', priceUnit:num(r.priceUnit), amount:num(r.amount) }];
+  }
+  return [{ name:'', volume:'', priceUnit:0, amount:0 }];
+}
+function billingItemRow(it){
+  it = it || {};
+  return '<div class="billing-item-row" data-billing-item-row>' +
+    '<input data-item-field="name" type="text" placeholder="ชื่อรายการ" value="' + esc(it.name || '') + '" />' +
+    '<input data-item-field="volume" type="number" min="0" step="1" inputmode="decimal" placeholder="1" value="' + esc(it.volume || '') + '" />' +
+    '<input data-item-field="priceUnit" type="number" min="0" step="1" inputmode="decimal" placeholder="0.00" value="' + esc(it.priceUnit || '') + '" />' +
+    '<input data-item-field="amount" type="number" min="0" step="1" inputmode="decimal" placeholder="0.00" value="' + esc(it.amount || '') + '" />' +
+    '<button class="billing-remove-line" type="button" data-remove-billing-item aria-label="Remove item">&times;</button>' +
+  '</div>';
+}
+function recalcBillingItems(changed){
+  var rows = Array.prototype.slice.call(document.querySelectorAll('[data-billing-item-row]'));
+  var total = 0;
+  rows.forEach(function(row){
+    if(changed && row === changed && (changed.dataset.changedField === 'volume' || changed.dataset.changedField === 'priceUnit')){
+      var q = num(row.querySelector('[data-item-field="volume"]').value);
+      var p = num(row.querySelector('[data-item-field="priceUnit"]').value);
+      row.querySelector('[data-item-field="amount"]').value = q && p ? String(q * p) : row.querySelector('[data-item-field="amount"]').value;
+    }
+    total += num(row.querySelector('[data-item-field="amount"]').value);
+  });
+  var el = document.getElementById('billingItemsTotal');
+  if(el) el.textContent = money(total);
+}
+function collectBillingItems(){
+  return Array.prototype.slice.call(document.querySelectorAll('[data-billing-item-row]')).map(function(row){
+    return {
+      name: row.querySelector('[data-item-field="name"]').value.trim(),
+      volume: row.querySelector('[data-item-field="volume"]').value.trim(),
+      priceUnit: num(row.querySelector('[data-item-field="priceUnit"]').value),
+      amount: num(row.querySelector('[data-item-field="amount"]').value)
+    };
+  }).filter(function(it){ return it.name || it.volume || it.priceUnit || it.amount; });
+}
 function renderBilling(){
   var fields = billingFields();
   var rows = filteredBilling();
@@ -2124,12 +2245,9 @@ function renderBilling(){
   }
   document.getElementById('bEmpty').innerHTML = '';
   document.getElementById('bBody').innerHTML = rows.map(function(r){
-    return '<tr>' + fields.map(function(f){
-      if(f.key === 'expenseType'){
-        return '<td><select class="cell-select" data-billing-select="' + esc(r.id) + '" data-field="' + esc(f.key) + '">' + expenseTypeOptions(r[f.key]) + '</select></td>';
-      }
+    return '<tr data-billing-row="' + esc(r.id) + '">' + fields.map(function(f){
       var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
-      return '<td' + (f.money ? ' class="num"' : '') + ' contenteditable="true" spellcheck="false" tabindex="0" data-billing-cell="' + esc(r.id) + '" data-field="' + esc(f.key) + '">' + v + '</td>';
+      return '<td' + (f.money ? ' class="num"' : '') + '>' + v + '</td>';
     }).join('') + '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">Edit</button> <button class="icon-btn del" type="button" data-billing-del="' + esc(r.id) + '">Delete</button></td></tr>';
   }).join('');
   document.getElementById('bFoot').innerHTML = '<tr>' + fields.map(function(f){
@@ -2141,24 +2259,66 @@ function renderBilling(){
 function openBilling(id){
   state.editingBillingId = id || null;
   var r = id ? (state.billing || []).find(function(x){ return x.id === id; }) : null;
-  document.getElementById('mdBillingTitle').textContent = r ? 'Edit approval request' : 'Add approval request';
-  document.getElementById('billingForm').innerHTML = billingFields().map(function(f){
-    var v = r ? (r[f.key] || '') : '';
-    if(f.key === 'expenseType'){
-      return '<div class="f"><label for="b_' + esc(f.key) + '">' + esc(f.label) + '</label><select id="b_' + esc(f.key) + '">' + expenseTypeOptions(v) + '</select></div>';
-    }
-    var type = f.money ? 'number" min="0" step="1" inputmode="decimal' : 'text';
-    return '<div class="f' + (f.wide ? ' wide-field' : '') + '"><label for="b_' + esc(f.key) + '">' + esc(f.label) + '</label><input id="b_' + esc(f.key) + '" type="' + type + '" value="' + esc(v) + '" /></div>';
-  }).join('');
+  var get = function(k){ return r ? (r[k] || '') : ''; };
+  document.getElementById('mdBillingTitle').textContent = r ? 'แก้ไขใบคำขออนุมัติ' : 'สร้างใบคำขออนุมัติ';
+  document.getElementById('billingForm').innerHTML =
+    '<div class="billing-form-grid">' +
+      billingControl('prNo', 'PR No.', get('prNo'), { placeholder:'MK2026-001' }) +
+      billingControl('supplier', 'Supplier', get('supplier'), { highlight:true, placeholder:'กรอกชื่อบริษัท / ชื่อผู้ขาย' }) +
+      billingControl('expenseType', 'ประเภทค่าใช้จ่าย', get('expenseType'), { select:true, options:expenseTypeOptions(get('expenseType')), help:'เพิ่มตัวเลือกได้ที่ Builder > Settings' }) +
+      billingControl('company', 'Company', get('company'), { select:true, options:fieldOptions('company', get('company'), ['WHANPAK', 'Bloom', 'Pancake Cafe']) }) +
+      billingControl('store', 'Store', get('store'), { select:true, options:fieldOptions('store', get('store'), ['Bloom', 'Pancake', 'WHANPAK']) }) +
+      billingControl('venuePlacement', 'Venue/Placement', get('venuePlacement'), { placeholder:'สถานที่/สื่อ' }) +
+      billingControl('description', 'Description', get('description'), { span:true, highlight:true, placeholder:'รายละเอียดงาน' }) +
+      billingControl('projectDuration', 'Project Duration', get('projectDuration'), { span:true, placeholder:'เช่น 1 ก.ค. 2026 - 31 ก.ค. 2026' }) +
+      billingControl('detail', 'Detail', get('detail'), { span:true, textarea:true, rows:4, placeholder:'รายละเอียดงานเพิ่มเติม เงื่อนไข หรือเอกสารประกอบ' }) +
+      billingControl('remark', 'Remark', get('remark'), { span:true, textarea:true, rows:3, placeholder:'หมายเหตุเพิ่มเติม เช่น เงื่อนไขงาน เหตุผล หรือข้อมูลที่ต้องแจ้งผู้อนุมัติ' }) +
+    '</div>' +
+    '<div class="billing-soft">' +
+      '<div class="billing-items-top"><h4>รายการย่อย</h4><button class="billing-add-line" type="button" data-add-billing-item>+ เพิ่มรายการ</button></div>' +
+      '<div class="billing-item-head"><span>รายการ</span><span>จำนวน</span><span>Price / Unit</span><span>Amount</span><span></span></div>' +
+      '<div id="billingItemsBody">' + billingDraftItems(r).map(billingItemRow).join('') + '</div>' +
+      '<div class="billing-total"><span>AMOUNT รวม</span><strong id="billingItemsTotal">฿0</strong></div>' +
+    '</div>' +
+    '<div class="billing-soft">' +
+      '<h4>เอกสารและผู้เกี่ยวข้อง</h4>' +
+      '<div class="billing-form-grid">' +
+        billingControl('workIn', 'Work in', get('workIn'), { placeholder:'ผู้รับผิดชอบ/ทีม' }) +
+        billingControl('signature', 'ลายเซ็น', get('signature'), { select:true, options:fieldOptions('signature', get('signature'), ['รออนุมัติ', 'อนุมัติแล้ว']) }) +
+      '</div>' +
+      '<div class="billing-attach"><div class="billing-attach-grid">' +
+        billingControl('file2', 'ไฟล์แนบ-2', get('file2'), { placeholder:'ลิงก์หรือชื่อไฟล์' }) +
+        billingControl('quotation', 'Quotation', get('quotation'), { placeholder:'ลิงก์หรือเลขที่เอกสาร' }) +
+        billingControl('attachment', 'ไฟล์แนบ', get('attachment'), { placeholder:'ลิงก์แนบ' }) +
+        billingControl('refNo', 'Ref. No.', get('refNo'), { placeholder:'เลขอ้างอิง' }) +
+        billingControl('invoice', 'Invoice (IV)', get('invoice'), { placeholder:'เลข/ลิงก์ Invoice' }) +
+        billingControl('receipt', 'Receipt (RE)', get('receipt'), { placeholder:'เลข/ลิงก์ Receipt' }) +
+        billingControl('transferProof', 'หลักฐานการโอน', get('transferProof'), { placeholder:'ลิงก์หลักฐานการโอน' }) +
+        billingControl('link', 'ลิงก์แนบ', get('link'), { placeholder:'URL' }) +
+        billingControl('withholdingTax', 'ใบหัก ณ ที่จ่าย (WH)', get('withholdingTax'), { placeholder:'เลข/ลิงก์เอกสาร' }) +
+      '</div></div>' +
+    '</div>';
   openModal('mdBilling');
-  setTimeout(function(){ document.getElementById('b_prNo').focus(); }, 30);
+  recalcBillingItems();
+  setTimeout(function(){ document.getElementById('b_supplier').focus(); }, 30);
 }
 function saveBilling(){
   var data = {};
   billingFields().forEach(function(f){
     var el = document.getElementById('b_' + f.key);
+    if(!el){
+      data[f.key] = f.money ? 0 : '';
+      return;
+    }
     data[f.key] = f.money ? num(el.value) : el.value.trim();
   });
+  var items = collectBillingItems();
+  data.items = items;
+  if(items.length){
+    data.amount = items.reduce(function(s,it){ return s + num(it.amount); }, 0);
+    data.volume = items.reduce(function(s,it){ return s + num(it.volume); }, 0) || data.volume;
+    if(items.length === 1 && !data.priceUnit) data.priceUnit = num(items[0].priceUnit);
+  }
   var target;
   if(state.editingBillingId){
     target = state.billing.find(function(x){ return x.id === state.editingBillingId; });
@@ -2670,6 +2830,31 @@ document.getElementById('view-targets').addEventListener('click', function(e){
 });
 document.getElementById('btnAddBilling').addEventListener('click', function(){ openBilling(); });
 document.getElementById('btnSaveBilling').addEventListener('click', saveBilling);
+document.getElementById('billingForm').addEventListener('click', function(e){
+  if(e.target.closest('[data-add-billing-item]')){
+    document.getElementById('billingItemsBody').insertAdjacentHTML('beforeend', billingItemRow());
+    recalcBillingItems();
+    return;
+  }
+  var remove = e.target.closest('[data-remove-billing-item]');
+  if(remove){
+    var rows = document.querySelectorAll('[data-billing-item-row]');
+    if(rows.length > 1){
+      remove.closest('[data-billing-item-row]').remove();
+    } else {
+      remove.closest('[data-billing-item-row]').querySelectorAll('input').forEach(function(input){ input.value = ''; });
+    }
+    recalcBillingItems();
+  }
+});
+document.getElementById('billingForm').addEventListener('input', function(e){
+  var input = e.target.closest('[data-item-field]');
+  if(!input) return;
+  var row = input.closest('[data-billing-item-row]');
+  row.dataset.changedField = input.dataset.itemField;
+  recalcBillingItems(row);
+  delete row.dataset.changedField;
+});
 document.getElementById('btnExportBilling').addEventListener('click', exportBillingCSV);
 document.getElementById('btnImportBilling').addEventListener('click', function(){
   document.getElementById('fileBillingImport').click();
@@ -2687,40 +2872,6 @@ document.getElementById('bSearch').addEventListener('input', function(e){
   state.bf.q = e.target.value;
   renderBilling();
 });
-document.getElementById('bTable').addEventListener('focusin', function(e){
-  var cell = e.target.closest('[data-billing-cell]');
-  if(!cell) return;
-  var field = billingFields().find(function(f){ return f.key === cell.dataset.field; });
-  if(field && field.money){
-    cell.textContent = String(num(cell.textContent) || '');
-  }
-});
-document.getElementById('bTable').addEventListener('focusout', function(e){
-  var cell = e.target.closest('[data-billing-cell]');
-  if(cell) saveBillingCell(cell);
-});
-document.getElementById('bTable').addEventListener('keydown', function(e){
-  var cell = e.target.closest('[data-billing-cell]');
-  if(!cell) return;
-  if(e.key === 'Enter'){
-    e.preventDefault();
-    cell.blur();
-  } else if(e.key === 'Escape'){
-    e.preventDefault();
-    renderBilling();
-  }
-});
-document.getElementById('bTable').addEventListener('change', function(e){
-  var sel = e.target.closest('[data-billing-select]');
-  if(!sel) return;
-  var row = (state.billing || []).find(function(r){ return r.id === sel.dataset.billingSelect; });
-  if(!row) return;
-  row[sel.dataset.field] = sel.value;
-  persistBillingLocal();
-  saveBillingOne(row);
-  renderBilling();
-  toast('Saved');
-});
 document.getElementById('bTable').addEventListener('click', function(e){
   var edit = e.target.closest('[data-billing-edit]');
   if(edit){
@@ -2728,11 +2879,16 @@ document.getElementById('bTable').addEventListener('click', function(e){
     return;
   }
   var del = e.target.closest('[data-billing-del]');
-  if(!del) return;
-  if(!confirm('Delete this approval request?')) return;
-  state.billing = state.billing.filter(function(r){ return r.id !== del.dataset.billingDel; });
-  removeBillingOne(del.dataset.billingDel);
-  renderBilling();
+  if(del){
+    if(!confirm('Delete this approval request?')) return;
+    state.billing = state.billing.filter(function(r){ return r.id !== del.dataset.billingDel; });
+    removeBillingOne(del.dataset.billingDel);
+    renderBilling();
+    return;
+  }
+  if(e.target.closest('button,input,select,textarea,a')) return;
+  var row = e.target.closest('[data-billing-row]');
+  if(row) openBilling(row.dataset.billingRow);
 });
 document.getElementById('btnAddExpenseType').addEventListener('click', addExpenseType);
 document.getElementById('expenseTypeInput').addEventListener('keydown', function(e){
