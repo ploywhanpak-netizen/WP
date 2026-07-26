@@ -162,6 +162,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .card-head .hint{font-size:11.5px;color:var(--muted)}
 .table-wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;min-width:1080px}
+.billing-table{min-width:2500px}
 thead th{
   position:sticky;top:0;background:#F3F6F9;text-align:left;
   font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
@@ -286,6 +287,7 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
   background:var(--card);border-radius:12px;width:100%;max-width:620px;box-shadow:0 24px 60px -20px rgba(10,20,30,.5);
 }
 .modal.wide{max-width:840px}
+.modal.xwide{max-width:1040px}
 .modal-head{display:flex;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
 .modal-head h3{font-family:var(--display);font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
 .modal-head p{margin:3px 0 0;font-size:12px;color:var(--muted)}
@@ -294,12 +296,14 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:#FAFCFE;border-radius:0 0 12px 12px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .f{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
 .f label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .f input,.f select,.f textarea{border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff;width:100%}
 .f textarea{min-height:70px;resize:vertical}
 .f input:focus,.f textarea:focus{border-color:var(--focus)}
 .f .help{font-size:11px;color:var(--muted)}
+.wide-field{grid-column:span 2}
 fieldset{border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px}
 legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 6px}
 
@@ -400,8 +404,9 @@ body.gated .gate{display:flex}
   .topbar{position:static}
   .topbar,.content{padding-left:16px;padding-right:16px}
   .content{padding-top:18px}
-  .stats,#rStats,#aStats,#tStats{grid-template-columns:repeat(2,1fr)}
-  .grid2,.grid3{grid-template-columns:1fr}
+  .stats,#rStats,#aStats,#tStats,#bStats{grid-template-columns:repeat(2,1fr)}
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}
+  .wide-field{grid-column:auto}
   .metrics{grid-template-columns:repeat(2,1fr)}
   .filters{gap:8px}
   .field select,.field input{min-width:0}
@@ -482,6 +487,7 @@ body.gated .gate{display:flex}
       <button type="button" data-view="analytics"><span class="idx">02</span> Engagement KPI</button>
       <button type="button" data-view="targets"><span class="idx">03</span> Target</button>
       <button type="button" data-view="budget"><span class="idx">04</span> Budget</button>
+      <button type="button" data-view="billing"><span class="idx">05</span> Billing</button>
     </nav>
     <div class="side-foot">
       <p class="foot-label">Backup</p>
@@ -695,6 +701,42 @@ body.gated .gate{display:flex}
         </div>
       </div>
     </section>
+
+    <!-- ============ BILLING ============ -->
+    <section class="view" id="view-billing">
+      <header class="topbar">
+        <h2>Billing / คำขออนุมัติ</h2>
+        <p class="sub">Track PR requests, suppliers, invoices, receipts and payment evidence.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="bSearch">Search</label>
+            <input class="search" id="bSearch" type="search" placeholder="PR, store, supplier, company" />
+          </div>
+          <div class="spacer"></div>
+          <button class="btn" type="button" id="btnExportBilling">Export CSV</button>
+          <button class="btn primary" type="button" id="btnAddBilling">+ Add request</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="stats" id="bStats"></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Approval Requests</h3>
+            <span class="hint" id="bCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="billing-table" id="bTable">
+              <thead>
+                <tr id="bHead"></tr>
+              </thead>
+              <tbody id="bBody"></tbody>
+              <tfoot id="bFoot"></tfoot>
+            </table>
+          </div>
+          <div id="bEmpty"></div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -760,6 +802,26 @@ body.gated .gate{display:flex}
   </div>
 </div>
 
+<!-- ============ BILLING MODAL ============ -->
+<div class="backdrop" id="mdBilling">
+  <div class="modal xwide" role="dialog" aria-modal="true" aria-labelledby="mdBillingTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="mdBillingTitle">Add approval request</h3>
+        <p>PR No. and Supplier are optional, but useful for searching later.</p>
+      </div>
+      <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid4" id="billingForm"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="button" id="btnSaveBilling">Save request</button>
+    </div>
+  </div>
+</div>
+
 <div class="dropzone" id="dropzone"><div class="dropzone-inner">Drop a CSV file to import</div></div>
 <div class="toast" id="toast"></div>
 
@@ -783,6 +845,7 @@ var FIREBASE_CONFIG = {
 var FIREBASE_COLLECTION = 'influencerRecords';
 var FIREBASE_TARGET_COLLECTION = 'targetBudget';
 var FIREBASE_TARGET_DOC = 'main';
+var FIREBASE_BILLING_COLLECTION = 'approvalRequests';
 var KPI_MONTHLY = 20000;           /* engagement target per month */
 var SIGN_IN = 'none';              /* no login screen; Firestore rules control who can read/write */
 var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
@@ -790,6 +853,7 @@ var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
 /* ---------------- storage ---------------- */
 var KEY = 'influencer:records:v1';
 var TARGET_KEY = 'influencer:targets:v1';
+var BILLING_KEY = 'whanpak:approval-requests:v1';
 var canStore = typeof window.storage !== 'undefined' && window.storage;
 
 function loadRecords(){
@@ -848,6 +912,22 @@ function persistTargets(){
     localStorage.setItem(TARGET_KEY, JSON.stringify(state.targets || {}));
   } catch(e){}
 }
+function loadBilling(){
+  if(canStore){
+    return window.storage.get(BILLING_KEY).then(function(r){
+      if(!r || !r.value) return;
+      try { state.billing = JSON.parse(r.value) || []; } catch(e){ state.billing = []; }
+    }).catch(function(){});
+  }
+  try { state.billing = JSON.parse(localStorage.getItem(BILLING_KEY) || '[]') || []; } catch(e){ state.billing = []; }
+  return Promise.resolve();
+}
+function persistBillingLocal(){
+  try {
+    if(canStore) return window.storage.set(BILLING_KEY, JSON.stringify(state.billing || [])).catch(function(){});
+    localStorage.setItem(BILLING_KEY, JSON.stringify(state.billing || []));
+  } catch(e){}
+}
 function setStoreState(ok, text){
   var el = document.getElementById('storeState');
   el.innerHTML = '<span class="dot' + (ok ? '' : ' warn') + '"></span>' + esc(text);
@@ -902,6 +982,25 @@ function removeMany(ids){
   ids.forEach(function(id){ batch.delete(fb.fs.doc(fb.db, FIREBASE_COLLECTION, id)); });
   batch.commit().catch(syncFail);
 }
+function billingDocBody(r){
+  var out = {};
+  billingFields().forEach(function(f){
+    out[f.key] = f.money ? num(r[f.key]) : (r[f.key] || '');
+  });
+  out.updatedAt = Date.now();
+  out.updatedBy = whoami();
+  return out;
+}
+function saveBillingOne(r){
+  persistBillingLocal();
+  if(!live()) return;
+  fb.fs.setDoc(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, r.id), billingDocBody(r)).catch(syncFail);
+}
+function removeBillingOne(id){
+  persistBillingLocal();
+  if(!live()) return;
+  fb.fs.deleteDoc(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, id)).catch(syncFail);
+}
 
 function signInWithGoogle(){
   updateGate();
@@ -955,6 +1054,22 @@ function subscribeTargets(){
     setStoreState(false, 'Target sync error - ' + (err.code || 'check your Firestore rules'));
   });
 }
+function subscribeBilling(){
+  if(fb.unsubBilling) return;
+  fb.unsubBilling = fb.fs.onSnapshot(fb.fs.collection(fb.db, FIREBASE_BILLING_COLLECTION), function(snap){
+    var list = [];
+    snap.forEach(function(d){
+      var v = d.data() || {};
+      v.id = d.id;
+      list.push(v);
+    });
+    state.billing = list;
+    persistBillingLocal();
+    render();
+  }, function(err){
+    setStoreState(false, 'Billing sync error - ' + (err.code || 'check your Firestore rules'));
+  });
+}
 
 function connectTeam(){
   setStoreState(true, 'Connecting to your team ledger...');
@@ -963,11 +1078,12 @@ function connectTeam(){
     import(SDK + 'firebase-firestore.js')
   ]).then(function(m){
     var app = m[0].initializeApp(FIREBASE_CONFIG);
-    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null };
+    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null };
     renderAuthBox();
     updateGate();
     subscribe();
     subscribeTargets();
+    subscribeBilling();
   }).catch(function(e){
     fb = null;
     document.body.classList.remove('gated');
@@ -1060,6 +1176,7 @@ function toast(msg){
 var now = new Date();
 var state = {
   records: [],
+  billing: [],
   view: 'records',
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
@@ -1067,6 +1184,8 @@ var state = {
   sort: { records:null, analytics:null, targets:null },
   targets: {},
   editTarget: null,
+  editingBillingId: null,
+  bf: { q:'' },
   budgetOpen: {},
   editingId: null,
   linksId: null,
@@ -1798,10 +1917,129 @@ function renderTargets(){
     months.map(function(v){ return '<td class="num">' + money(v) + '</td>'; }).join('') + '<td></td></tr>';
 }
 
+/* ---------------- billing ---------------- */
+function billingFields(){
+  return [
+    { key:'prNo', label:'PR No.' },
+    { key:'store', label:'Store' },
+    { key:'expenseType', label:'ประเภทค่าใช้จ่าย' },
+    { key:'supplier', label:'Supplier' },
+    { key:'description', label:'Description', wide:true },
+    { key:'venuePlacement', label:'Venue/Placement' },
+    { key:'detail', label:'Detail', wide:true },
+    { key:'projectDuration', label:'Project Duration' },
+    { key:'workIn', label:'Work in' },
+    { key:'volume', label:'Volume' },
+    { key:'priceUnit', label:'Price / Unit', money:true },
+    { key:'amount', label:'Amount', money:true },
+    { key:'signature', label:'ลายเซ็น' },
+    { key:'company', label:'Company' },
+    { key:'file2', label:'ไฟล์แนบ-2' },
+    { key:'quotation', label:'Quotation' },
+    { key:'attachment', label:'ไฟล์แนบ' },
+    { key:'refNo', label:'Ref. No.' },
+    { key:'invoice', label:'Invoice (IV)' },
+    { key:'receipt', label:'Receipt (RE)' },
+    { key:'transferProof', label:'หลักฐานการโอน' },
+    { key:'link', label:'ลิงก์แนบ' },
+    { key:'withholdingTax', label:'ใบหัก ณ ที่จ่าย (WH)' }
+  ];
+}
+function filteredBilling(){
+  var q = String(state.bf.q || '').trim().toLowerCase();
+  var list = (state.billing || []).slice();
+  if(q){
+    list = list.filter(function(r){
+      return billingFields().some(function(f){ return String(r[f.key] || '').toLowerCase().indexOf(q) > -1; });
+    });
+  }
+  return list;
+}
+function renderBilling(){
+  var fields = billingFields();
+  var rows = filteredBilling();
+  document.getElementById('bSearch').value = state.bf.q || '';
+  document.getElementById('bHead').innerHTML = fields.map(function(f){ return '<th' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>'; }).join('') + '<th></th>';
+  document.getElementById('bCount').textContent = rows.length + ' shown of ' + (state.billing || []).length + ' total';
+  var total = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
+  document.getElementById('bStats').innerHTML = [
+    stat('Requests', fmt(rows.length), 'Approval rows'),
+    stat('Amount', money(total), 'Total requested'),
+    stat('Suppliers', fmt(unique(rows.map(function(r){ return r.supplier; })).length), 'Unique suppliers'),
+    stat('Companies', fmt(unique(rows.map(function(r){ return r.company; })).length), 'Unique companies')
+  ].join('');
+  if(!rows.length){
+    document.getElementById('bBody').innerHTML = '';
+    document.getElementById('bFoot').innerHTML = '';
+    document.getElementById('bEmpty').innerHTML = '<div class="empty"><h4>Add your first approval request</h4><p>Use + Add request to record PR, supplier and payment documents.</p></div>';
+    return;
+  }
+  document.getElementById('bEmpty').innerHTML = '';
+  document.getElementById('bBody').innerHTML = rows.map(function(r){
+    return '<tr>' + fields.map(function(f){
+      var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
+      return '<td' + (f.money ? ' class="num"' : '') + '>' + v + '</td>';
+    }).join('') + '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">Edit</button> <button class="icon-btn del" type="button" data-billing-del="' + esc(r.id) + '">Delete</button></td></tr>';
+  }).join('');
+  document.getElementById('bFoot').innerHTML = '<tr>' + fields.map(function(f){
+    if(f.key === 'prNo') return '<td>Total</td>';
+    if(f.key === 'amount') return '<td class="num">' + money(total) + '</td>';
+    return '<td></td>';
+  }).join('') + '<td></td></tr>';
+}
+function openBilling(id){
+  state.editingBillingId = id || null;
+  var r = id ? (state.billing || []).find(function(x){ return x.id === id; }) : null;
+  document.getElementById('mdBillingTitle').textContent = r ? 'Edit approval request' : 'Add approval request';
+  document.getElementById('billingForm').innerHTML = billingFields().map(function(f){
+    var v = r ? (r[f.key] || '') : '';
+    var type = f.money ? 'number" min="0" step="1" inputmode="decimal' : 'text';
+    return '<div class="f' + (f.wide ? ' wide-field' : '') + '"><label for="b_' + esc(f.key) + '">' + esc(f.label) + '</label><input id="b_' + esc(f.key) + '" type="' + type + '" value="' + esc(v) + '" /></div>';
+  }).join('');
+  openModal('mdBilling');
+  setTimeout(function(){ document.getElementById('b_prNo').focus(); }, 30);
+}
+function saveBilling(){
+  var data = {};
+  billingFields().forEach(function(f){
+    var el = document.getElementById('b_' + f.key);
+    data[f.key] = f.money ? num(el.value) : el.value.trim();
+  });
+  var target;
+  if(state.editingBillingId){
+    target = state.billing.find(function(x){ return x.id === state.editingBillingId; });
+    Object.keys(data).forEach(function(k){ target[k] = data[k]; });
+  } else {
+    data.id = uid();
+    state.billing.push(data);
+    target = data;
+  }
+  saveBillingOne(target);
+  closeModal('mdBilling');
+  renderBilling();
+  toast('Approval request saved');
+}
+function exportBillingCSV(){
+  var rows = filteredBilling();
+  if(!rows.length){ toast('Nothing to export'); return; }
+  var fields = billingFields();
+  var lines = [fields.map(function(f){ return f.label; }).join(',')];
+  rows.forEach(function(r){
+    lines.push(fields.map(function(f){ return '"' + String(r[f.key] == null ? '' : r[f.key]).replace(/"/g,'""') + '"'; }).join(','));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\n')], { type:'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'approval-requests.csv';
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+}
+
 function render(){
   buildFilters();
   if(state.view === 'records') renderRecords();
   else if(state.view === 'analytics') renderAnalytics();
+  else if(state.view === 'billing') renderBilling();
   else renderTargets();
 }
 
@@ -1999,6 +2237,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function(
     document.getElementById('view-records').classList.toggle('active', state.view === 'records');
     document.getElementById('view-analytics').classList.toggle('active', state.view === 'analytics');
     document.getElementById('view-targets').classList.toggle('active', state.view === 'targets' || state.view === 'budget');
+    document.getElementById('view-billing').classList.toggle('active', state.view === 'billing');
     render();
   });
 });
@@ -2150,6 +2389,26 @@ document.getElementById('view-targets').addEventListener('click', function(e){
   delete rows[b.dataset.targetDel];
   persistTargets();
   render();
+});
+document.getElementById('btnAddBilling').addEventListener('click', function(){ openBilling(); });
+document.getElementById('btnSaveBilling').addEventListener('click', saveBilling);
+document.getElementById('btnExportBilling').addEventListener('click', exportBillingCSV);
+document.getElementById('bSearch').addEventListener('input', function(e){
+  state.bf.q = e.target.value;
+  renderBilling();
+});
+document.getElementById('bTable').addEventListener('click', function(e){
+  var edit = e.target.closest('[data-billing-edit]');
+  if(edit){
+    openBilling(edit.dataset.billingEdit);
+    return;
+  }
+  var del = e.target.closest('[data-billing-del]');
+  if(!del) return;
+  if(!confirm('Delete this approval request?')) return;
+  state.billing = state.billing.filter(function(r){ return r.id !== del.dataset.billingDel; });
+  removeBillingOne(del.dataset.billingDel);
+  renderBilling();
 });
 ['aBasis','aYear','aMonth','aDay'].forEach(function(id){
   document.getElementById(id).addEventListener('change', function(e){
@@ -2449,7 +2708,7 @@ function recovered(){
 /* ---------------- boot ---------------- */
 function bootLocal(){
   if(!canStore) setStoreState(false, 'Saving is off here - records last for this session');
-  return Promise.all([loadRecords(), loadTargets()]).then(function(all){
+  return Promise.all([loadRecords(), loadTargets(), loadBilling()]).then(function(all){
     var data = all[0];
     var seeded = data && data.seeded;
     state.records = data && Array.isArray(data.records) ? data.records : [];
@@ -2466,7 +2725,7 @@ function bootLocal(){
 }
 
 if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
-  loadTargets().then(render);
+  Promise.all([loadTargets(), loadBilling()]).then(render);
   connectTeam();
 } else {
   bootLocal();
