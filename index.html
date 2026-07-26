@@ -773,7 +773,7 @@ body.gated .gate{display:flex}
    Leave apiKey empty to keep the ledger on this device only.
    ================================================================= */
 var FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAG2z6ZJrXWEXLjzpvF6Wc8yQSE1n8k2QI",
+  apiKey: "AIzaSyAGzZ6ZJrXWEXLjzpvF6Wc8yQSE1n8k2QI",
   authDomain: "whanpak-influencer-99fd9.firebaseapp.com",
   projectId: "whanpak-influencer-99fd9",
   storageBucket: "whanpak-influencer-99fd9.firebasestorage.app",
@@ -784,7 +784,7 @@ var FIREBASE_COLLECTION = 'influencerRecords';
 var FIREBASE_TARGET_COLLECTION = 'targetBudget';
 var FIREBASE_TARGET_DOC = 'main';
 var KPI_MONTHLY = 20000;           /* engagement target per month */
-var SIGN_IN = 'google';            /* 'google' asks each teammate to sign in - 'anonymous' lets anyone with the link in */
+var SIGN_IN = 'none';              /* no login screen; Firestore rules control who can read/write */
 var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
 
 /* ---------------- storage ---------------- */
@@ -859,9 +859,9 @@ function setStoreState(ok, text){
 }
 
 /* ---------------- team sync (Firebase) ---------------- */
-var fb = null;              /* { fs, au, db, auth, user } once connected */
-function live(){ return !!(fb && fb.user); }
-function whoami(){ return fb && fb.user ? (fb.user.email || fb.user.uid) : 'local'; }
+var fb = null;              /* { fs, db } once connected */
+function live(){ return !!(fb && fb.db); }
+function whoami(){ return 'WHANPAK shared link'; }
 
 function docBody(r){
   var out = {};
@@ -904,49 +904,16 @@ function removeMany(ids){
 }
 
 function signInWithGoogle(){
-  if(!fb) return;
-  /* Popup on every device: this app is hosted outside Firebase Hosting, and
-     signInWithRedirect breaks on Safari 16.1+, Firefox 109+ and Chrome 115+
-     because they block the cross-site storage the redirect flow relies on. */
-  var provider = new fb.au.GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  setStoreState(true, 'Opening Google sign-in...');
-  fb.au.signInWithPopup(fb.auth, provider).catch(function(e){
-    var code = (e && e.code) || '';
-    if(code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'){
-      setStoreState(false, 'Sign in to see the team ledger');
-      return;
-    }
-    if(code === 'auth/popup-blocked'){
-      setStoreState(false, 'Allow pop-ups for this site, then tap sign in again');
-      return;
-    }
-    if(code === 'auth/unauthorized-domain'){
-      setStoreState(false, 'Add this domain in Firebase > Authentication > Settings');
-      return;
-    }
-    setStoreState(false, 'Sign-in failed - ' + (code || 'try again'));
-  });
+  updateGate();
 }
 function updateGate(){
-  document.body.classList.toggle('gated', !!fb && !fb.user);
+  document.body.classList.remove('gated');
 }
 document.getElementById('btnGateSignIn').addEventListener('click', signInWithGoogle);
 
 function renderAuthBox(){
   var box = document.getElementById('teamAuth');
-  if(!fb){ box.innerHTML = ''; return; }
-  if(fb.user){
-    box.innerHTML = SIGN_IN === 'google'
-      ? '<button type="button" id="btnSignOut">Sign out</button>'
-      : '';
-  } else {
-    box.innerHTML = '<button type="button" id="btnSignIn">Sign in with Google</button>';
-  }
-  var si = document.getElementById('btnSignIn');
-  if(si) si.addEventListener('click', signInWithGoogle);
-  var so = document.getElementById('btnSignOut');
-  if(so) so.addEventListener('click', function(){ fb.au.signOut(fb.auth); });
+  box.innerHTML = '';
 }
 
 function subscribe(){
@@ -993,35 +960,14 @@ function connectTeam(){
   setStoreState(true, 'Connecting to your team ledger...');
   return Promise.all([
     import(SDK + 'firebase-app.js'),
-    import(SDK + 'firebase-firestore.js'),
-    import(SDK + 'firebase-auth.js')
+    import(SDK + 'firebase-firestore.js')
   ]).then(function(m){
     var app = m[0].initializeApp(FIREBASE_CONFIG);
-    fb = { fs:m[1], au:m[2], db:m[1].getFirestore(app), auth:m[2].getAuth(app), user:null, unsub:null, unsubTargets:null };
-    fb.au.getRedirectResult(fb.auth).catch(function(e){
-      setStoreState(false, 'Sign-in failed - ' + ((e && e.code) || 'try again'));
-    });
-    fb.au.onAuthStateChanged(fb.auth, function(user){
-      fb.user = user || null;
-      renderAuthBox();
-      updateGate();
-      if(user){
-        subscribe();
-        subscribeTargets();
-      } else {
-        if(fb.unsub){ fb.unsub(); fb.unsub = null; }
-        if(fb.unsubTargets){ fb.unsubTargets(); fb.unsubTargets = null; }
-        state.records = [];
-        render();
-        if(SIGN_IN === 'anonymous'){
-          fb.au.signInAnonymously(fb.auth).catch(function(e){
-            setStoreState(false, 'Cannot open the shared ledger - ' + (e.code || 'check Firebase Auth'));
-          });
-        } else {
-          setStoreState(false, 'Sign in to see the team ledger');
-        }
-      }
-    });
+    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null };
+    renderAuthBox();
+    updateGate();
+    subscribe();
+    subscribeTargets();
   }).catch(function(e){
     fb = null;
     document.body.classList.remove('gated');
@@ -2520,7 +2466,6 @@ function bootLocal(){
 }
 
 if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
-  document.body.classList.add('gated');
   loadTargets().then(render);
   connectTeam();
 } else {
