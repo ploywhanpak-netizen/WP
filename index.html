@@ -175,6 +175,8 @@ table{border-collapse:collapse;width:100%;min-width:1080px}
 .billing-table [contenteditable="true"]{cursor:text;border-radius:6px;outline:0}
 .billing-table [contenteditable="true"]:hover{background:#F7FAFC;box-shadow:inset 0 0 0 1px #D8E0E8}
 .billing-table [contenteditable="true"]:focus{background:#fff;box-shadow:inset 0 0 0 2px rgba(4,120,120,.24)}
+.cell-select{width:100%;min-width:145px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text);padding:6px 8px;font:inherit}
+.cell-select:focus{outline:2px solid rgba(4,120,120,.22);border-color:var(--focus)}
 .billing-table td.actions{min-width:130px;white-space:nowrap}
 thead th{
   position:sticky;top:0;background:#F3F6F9;text-align:left;
@@ -501,6 +503,7 @@ body.gated .gate{display:flex}
       <button type="button" data-view="targets"><span class="idx">03</span> Target</button>
       <button type="button" data-view="budget"><span class="idx">04</span> Budget</button>
       <button type="button" data-view="billing"><span class="idx">05</span> Billing</button>
+    <button type="button" data-view="settings"><span class="idx">06</span> Builder</button>
     </nav>
     <div class="side-foot">
       <p class="foot-label">Backup</p>
@@ -752,6 +755,37 @@ body.gated .gate{display:flex}
         </div>
       </div>
     </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section class="view" id="view-settings">
+      <header class="topbar">
+      <h2>Builder Settings</h2>
+        <p class="sub">Builder settings for dropdowns and billing fields.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="expenseTypeInput">ประเภทค่าใช้จ่าย</label>
+            <input id="expenseTypeInput" type="text" placeholder="Add expense type" />
+          </div>
+          <button class="btn primary" type="button" id="btnAddExpenseType">+ Add type</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="card">
+          <div class="card-head">
+            <h3>Billing builder</h3>
+            <span class="hint">Used in Billing / คำขออนุมัติ</span>
+          </div>
+          <div class="table-wrap">
+            <table id="expenseTypeTable">
+              <thead>
+                <tr><th>ประเภทค่าใช้จ่าย</th><th></th></tr>
+              </thead>
+              <tbody id="expenseTypeBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -869,6 +903,7 @@ var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
 var KEY = 'influencer:records:v1';
 var TARGET_KEY = 'influencer:targets:v1';
 var BILLING_KEY = 'whanpak:approval-requests:v1';
+var SETTINGS_KEY = 'whanpak:builder-settings:v1';
 var canStore = typeof window.storage !== 'undefined' && window.storage;
 
 function loadRecords(){
@@ -943,6 +978,39 @@ function persistBillingLocal(){
   try {
     if(canStore) return window.storage.set(BILLING_KEY, JSON.stringify(state.billing || [])).catch(function(){});
     localStorage.setItem(BILLING_KEY, JSON.stringify(state.billing || []));
+  } catch(e){}
+}
+function defaultSettings(){
+  return {
+    expenseTypes: ['Influencer', 'Ads', 'Event', 'Production', 'Media', 'ของใช้สิ้นเปลือง']
+  };
+}
+function normalizeSettings(v){
+  var base = defaultSettings();
+  var list = v && Array.isArray(v.expenseTypes) ? v.expenseTypes : base.expenseTypes;
+  base.expenseTypes = [];
+  list.forEach(function(x){
+    var label = String(x || '').trim();
+    if(label && base.expenseTypes.map(function(v){ return v.toLowerCase(); }).indexOf(label.toLowerCase()) === -1){
+      base.expenseTypes.push(label);
+    }
+  });
+  return base;
+}
+function loadSettings(){
+  if(canStore){
+    return window.storage.get(SETTINGS_KEY).then(function(r){
+      state.settings = normalizeSettings(r && r.value ? JSON.parse(r.value) : null);
+    }).catch(function(){ state.settings = defaultSettings(); });
+  }
+  try { state.settings = normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null')); }
+  catch(e){ state.settings = defaultSettings(); }
+  return Promise.resolve();
+}
+function persistSettings(){
+  try {
+    if(canStore) return window.storage.set(SETTINGS_KEY, JSON.stringify(state.settings || defaultSettings())).catch(function(){});
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings || defaultSettings()));
   } catch(e){}
 }
 function setStoreState(ok, text){
@@ -1203,6 +1271,7 @@ var state = {
   tf: { year:String(now.getFullYear()) },
   sort: { records:null, analytics:null, targets:null },
   targets: {},
+  settings: defaultSettings(),
   editTarget: null,
   editingBillingId: null,
   bf: { q:'' },
@@ -2018,6 +2087,20 @@ function dedupeBilling(syncDelete){
   }
   return removed.length;
 }
+function expenseTypes(){
+  return ((state.settings && state.settings.expenseTypes) || defaultSettings().expenseTypes).slice();
+}
+function expenseTypeOptions(value){
+  var list = expenseTypes();
+  var current = String(value || '').trim();
+  if(current && list.map(function(v){ return v.toLowerCase(); }).indexOf(current.toLowerCase()) === -1){
+    list.unshift(current);
+  }
+  if(!list.length) list = ['Influencer', 'Ads', 'Event'];
+  return list.map(function(v){
+    return '<option value="' + esc(v) + '"' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>';
+  }).join('');
+}
 function renderBilling(){
   var fields = billingFields();
   var rows = filteredBilling();
@@ -2042,6 +2125,9 @@ function renderBilling(){
   document.getElementById('bEmpty').innerHTML = '';
   document.getElementById('bBody').innerHTML = rows.map(function(r){
     return '<tr>' + fields.map(function(f){
+      if(f.key === 'expenseType'){
+        return '<td><select class="cell-select" data-billing-select="' + esc(r.id) + '" data-field="' + esc(f.key) + '">' + expenseTypeOptions(r[f.key]) + '</select></td>';
+      }
       var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
       return '<td' + (f.money ? ' class="num"' : '') + ' contenteditable="true" spellcheck="false" tabindex="0" data-billing-cell="' + esc(r.id) + '" data-field="' + esc(f.key) + '">' + v + '</td>';
     }).join('') + '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">Edit</button> <button class="icon-btn del" type="button" data-billing-del="' + esc(r.id) + '">Delete</button></td></tr>';
@@ -2058,6 +2144,9 @@ function openBilling(id){
   document.getElementById('mdBillingTitle').textContent = r ? 'Edit approval request' : 'Add approval request';
   document.getElementById('billingForm').innerHTML = billingFields().map(function(f){
     var v = r ? (r[f.key] || '') : '';
+    if(f.key === 'expenseType'){
+      return '<div class="f"><label for="b_' + esc(f.key) + '">' + esc(f.label) + '</label><select id="b_' + esc(f.key) + '">' + expenseTypeOptions(v) + '</select></div>';
+    }
     var type = f.money ? 'number" min="0" step="1" inputmode="decimal' : 'text';
     return '<div class="f' + (f.wide ? ' wide-field' : '') + '"><label for="b_' + esc(f.key) + '">' + esc(f.label) + '</label><input id="b_' + esc(f.key) + '" type="' + type + '" value="' + esc(v) + '" /></div>';
   }).join('');
@@ -2098,6 +2187,42 @@ function saveBillingCell(cell){
   persistBillingLocal();
   saveBillingOne(row);
   renderBilling();
+  toast('Saved');
+}
+function renderSettings(){
+  var list = expenseTypes();
+  var body = document.getElementById('expenseTypeBody');
+  document.getElementById('expenseTypeInput').value = '';
+  body.innerHTML = list.map(function(v, i){
+    return '<tr><td contenteditable="true" spellcheck="false" tabindex="0" data-expense-edit="' + i + '">' + esc(v) + '</td>' +
+      '<td class="actions"><button class="icon-btn del" type="button" data-expense-del="' + i + '">Delete</button></td></tr>';
+  }).join('') || '<tr><td class="sub" colspan="2">No expense types yet.</td></tr>';
+}
+function addExpenseType(){
+  var input = document.getElementById('expenseTypeInput');
+  var label = String(input.value || '').trim();
+  if(!label){ input.focus(); return; }
+  var list = expenseTypes();
+  if(list.map(function(v){ return v.toLowerCase(); }).indexOf(label.toLowerCase()) > -1){
+    toast('Expense type already exists');
+    input.select();
+    return;
+  }
+  list.push(label);
+  state.settings = normalizeSettings({ expenseTypes:list });
+  persistSettings();
+  renderSettings();
+  toast('Expense type added');
+}
+function saveExpenseTypeCell(cell){
+  var idx = +cell.dataset.expenseEdit;
+  var label = String(cell.textContent || '').trim();
+  var list = expenseTypes();
+  if(!label){ renderSettings(); return; }
+  list[idx] = label;
+  state.settings = normalizeSettings({ expenseTypes:list });
+  persistSettings();
+  renderSettings();
   toast('Saved');
 }
 function exportBillingCSV(){
@@ -2191,6 +2316,7 @@ function render(){
   if(state.view === 'records') renderRecords();
   else if(state.view === 'analytics') renderAnalytics();
   else if(state.view === 'billing') renderBilling();
+  else if(state.view === 'settings') renderSettings();
   else renderTargets();
 }
 
@@ -2389,6 +2515,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function(
     document.getElementById('view-analytics').classList.toggle('active', state.view === 'analytics');
     document.getElementById('view-targets').classList.toggle('active', state.view === 'targets' || state.view === 'budget');
     document.getElementById('view-billing').classList.toggle('active', state.view === 'billing');
+    document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
     render();
   });
 });
@@ -2583,6 +2710,17 @@ document.getElementById('bTable').addEventListener('keydown', function(e){
     renderBilling();
   }
 });
+document.getElementById('bTable').addEventListener('change', function(e){
+  var sel = e.target.closest('[data-billing-select]');
+  if(!sel) return;
+  var row = (state.billing || []).find(function(r){ return r.id === sel.dataset.billingSelect; });
+  if(!row) return;
+  row[sel.dataset.field] = sel.value;
+  persistBillingLocal();
+  saveBillingOne(row);
+  renderBilling();
+  toast('Saved');
+});
 document.getElementById('bTable').addEventListener('click', function(e){
   var edit = e.target.closest('[data-billing-edit]');
   if(edit){
@@ -2595,6 +2733,39 @@ document.getElementById('bTable').addEventListener('click', function(e){
   state.billing = state.billing.filter(function(r){ return r.id !== del.dataset.billingDel; });
   removeBillingOne(del.dataset.billingDel);
   renderBilling();
+});
+document.getElementById('btnAddExpenseType').addEventListener('click', addExpenseType);
+document.getElementById('expenseTypeInput').addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  addExpenseType();
+});
+document.getElementById('expenseTypeTable').addEventListener('focusout', function(e){
+  var cell = e.target.closest('[data-expense-edit]');
+  if(cell) saveExpenseTypeCell(cell);
+});
+document.getElementById('expenseTypeTable').addEventListener('keydown', function(e){
+  var cell = e.target.closest('[data-expense-edit]');
+  if(!cell) return;
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    cell.blur();
+  } else if(e.key === 'Escape'){
+    e.preventDefault();
+    renderSettings();
+  }
+});
+document.getElementById('expenseTypeTable').addEventListener('click', function(e){
+  var del = e.target.closest('[data-expense-del]');
+  if(!del) return;
+  var list = expenseTypes();
+  var label = list[+del.dataset.expenseDel];
+  if(!confirm('Delete "' + label + '" from expense types?')) return;
+  list.splice(+del.dataset.expenseDel, 1);
+  state.settings = normalizeSettings({ expenseTypes:list });
+  persistSettings();
+  renderSettings();
+  toast('Expense type deleted');
 });
 ['aBasis','aYear','aMonth','aDay'].forEach(function(id){
   document.getElementById(id).addEventListener('change', function(e){
@@ -2894,7 +3065,7 @@ function recovered(){
 /* ---------------- boot ---------------- */
 function bootLocal(){
   if(!canStore) setStoreState(false, 'Saving is off here - records last for this session');
-  return Promise.all([loadRecords(), loadTargets(), loadBilling()]).then(function(all){
+  return Promise.all([loadRecords(), loadTargets(), loadBilling(), loadSettings()]).then(function(all){
     var data = all[0];
     var seeded = data && data.seeded;
     state.records = data && Array.isArray(data.records) ? data.records : [];
@@ -2911,7 +3082,7 @@ function bootLocal(){
 }
 
 if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
-  Promise.all([loadTargets(), loadBilling()]).then(render);
+  Promise.all([loadTargets(), loadBilling(), loadSettings()]).then(render);
   connectTeam();
 } else {
   bootLocal();
