@@ -713,8 +713,10 @@ body.gated .gate{display:flex}
             <input class="search" id="bSearch" type="search" placeholder="PR, store, supplier, company" />
           </div>
           <div class="spacer"></div>
+          <button class="btn" type="button" id="btnImportBilling">Import CSV</button>
           <button class="btn" type="button" id="btnExportBilling">Export CSV</button>
           <button class="btn primary" type="button" id="btnAddBilling">+ Add request</button>
+          <input type="file" id="fileBillingImport" accept=".csv,text/csv" hidden />
         </div>
       </header>
       <div class="content">
@@ -2034,6 +2036,55 @@ function exportBillingCSV(){
   a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
 }
+function normalizeHeader(s){
+  return String(s == null ? '' : s)
+    .toLowerCase()
+    .replace(/[\u201c\u201d"']/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[().]/g, '')
+    .trim();
+}
+function importBillingCSV(text){
+  var rows = parseCSV(text);
+  if(rows.length < 2){ toast('That file has no rows to import'); return; }
+  var head = rows[0].map(normalizeHeader);
+  function col(label){
+    var labels = Array.isArray(label) ? label : [label];
+    for(var i=0;i<labels.length;i++){
+      var idx = head.indexOf(normalizeHeader(labels[i]));
+      if(idx > -1) return idx;
+    }
+    return -1;
+  }
+  var fields = billingFields();
+  var aliases = {
+    detail: ['Detail','Detial'],
+    invoice: ['Invoice (IV)','Invoice','IV'],
+    receipt: ['Receipt (RE)','Receipt','RE'],
+    withholdingTax: ['ใบหัก ณ ที่จ่าย (WH)','ใบหัก ณ ที่จ่าย','WH']
+  };
+  var indexes = {};
+  fields.forEach(function(f){ indexes[f.key] = col(aliases[f.key] || f.label); });
+  var incoming = [];
+  rows.slice(1).forEach(function(row){
+    var item = { id: uid() };
+    var hasValue = false;
+    fields.forEach(function(f){
+      var idx = indexes[f.key];
+      var raw = idx > -1 ? row[idx] : '';
+      item[f.key] = f.money ? num(raw) : String(raw || '').trim();
+      if(String(raw || '').trim()) hasValue = true;
+    });
+    if(hasValue) incoming.push(item);
+  });
+  if(!incoming.length){ toast('No billing rows found in that file'); return; }
+  if(!confirm('Add ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + '?')) return;
+  state.billing = state.billing.concat(incoming);
+  persistBillingLocal();
+  incoming.forEach(saveBillingOne);
+  renderBilling();
+  toast('Imported ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's'));
+}
 
 function render(){
   buildFilters();
@@ -2393,6 +2444,18 @@ document.getElementById('view-targets').addEventListener('click', function(e){
 document.getElementById('btnAddBilling').addEventListener('click', function(){ openBilling(); });
 document.getElementById('btnSaveBilling').addEventListener('click', saveBilling);
 document.getElementById('btnExportBilling').addEventListener('click', exportBillingCSV);
+document.getElementById('btnImportBilling').addEventListener('click', function(){
+  document.getElementById('fileBillingImport').click();
+});
+document.getElementById('fileBillingImport').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0];
+  if(!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){ importBillingCSV(fr.result); };
+  fr.onerror = function(){ toast('Could not read that file'); };
+  fr.readAsText(f);
+  e.target.value = '';
+});
 document.getElementById('bSearch').addEventListener('input', function(e){
   state.bf.q = e.target.value;
   renderBilling();
