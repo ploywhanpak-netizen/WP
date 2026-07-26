@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -124,9 +124,9 @@ button,input,select,textarea{font:inherit;color:inherit}
   font-size:11px;font-family:var(--mono);color:var(--red);margin-top:6px;
   display:flex;align-items:center;gap:5px;
 }
-.stat .goal::before{content:'-ฒ';font-size:8px;transform:rotate(180deg)}
+.stat .goal::before{content:'';display:none}
 .stat .goal.ok{color:var(--teal)}
-.stat .goal.ok::before{content:'-ฒ';transform:none}
+.stat .goal.ok::before{content:'';display:none}
 .stat.accent-spend .v{color:var(--clay)}
 .stat.accent-eng .v{color:var(--teal)}
 .target-progress{height:7px;border-radius:999px;background:#F7D8D3;overflow:hidden;margin-top:10px}
@@ -194,8 +194,8 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .target-value:hover{background:#F7FAFC;border-color:var(--line)}
 .target-value:focus-visible{outline:2px solid rgba(4,120,120,.18)}
 .budget-month{font-weight:700;cursor:pointer}
-.budget-month::before{content:'-ธ';display:inline-block;margin-right:7px;font-size:10px}
-.budget-month.open::before{content:'-พ'}
+.budget-month::before{content:'>';display:inline-block;margin-right:7px;font-size:10px}
+.budget-month.open::before{content:'v'}
 .budget-detail td{background:#FAFCFE;color:var(--muted);font-size:12.5px}
 .budget-detail .detail-list{display:grid;gap:8px}
 .budget-item{display:grid;grid-template-columns:1.2fr 1fr .8fr .8fr .8fr;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:8px}
@@ -443,9 +443,9 @@ body.gated .gate{display:flex}
 <body>
 <div class="gate" id="gate">
   <div class="gate-card">
-    <span class="mark">Campaign Desk</span>
+    <span class="mark">WHANPAK</span>
     <h1>Influencer Ledger</h1>
-    <p class="gate-lead">Every booking, its engagement and what it cost - shared with your team.</p>
+    <p class="gate-lead">Campaign cost &amp; performance shared with your team.</p>
     <button class="gate-btn" type="button" id="btnGateSignIn">Sign in with Google</button>
     <p class="gate-msg" id="gateMsg">Use the Google account your team added to the ledger.</p>
   </div>
@@ -453,9 +453,9 @@ body.gated .gate{display:flex}
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <span class="mark">Campaign Desk</span>
+      <span class="mark">WHANPAK</span>
       <h1>Influencer Ledger</h1>
-      <p>Cost, reach and value per hire</p>
+      <p>Campaign cost &amp; performance</p>
     </div>
     <nav class="nav">
       <button type="button" data-view="records" aria-current="page"><span class="idx">01</span> Influencer Records</button>
@@ -753,7 +753,7 @@ body.gated .gate{display:flex}
    Leave apiKey empty to keep the ledger on this device only.
    ================================================================= */
 var FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAG2z6ZJrXWEXLjzpvF6Wc8yQSE1n8k2QI",
+  apiKey: "AIzaSyAGzZ6ZJrXWEXLjzpvF6Wc8yQSE1n8k2QI",
   authDomain: "whanpak-influencer-99fd9.firebaseapp.com",
   projectId: "whanpak-influencer-99fd9",
   storageBucket: "whanpak-influencer-99fd9.firebasestorage.app",
@@ -890,7 +890,7 @@ function signInWithGoogle(){
      because they block the cross-site storage the redirect flow relies on. */
   var provider = new fb.au.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  setStoreState(true, 'Opening Google sign-inโ€ฆ');
+  setStoreState(true, 'Opening Google sign-in...');
   fb.au.signInWithPopup(fb.auth, provider).catch(function(e){
     var code = (e && e.code) || '';
     if(code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'){
@@ -970,7 +970,7 @@ function subscribeTargets(){
 }
 
 function connectTeam(){
-  setStoreState(true, 'Connecting to your team ledgerโ€ฆ');
+  setStoreState(true, 'Connecting to your team ledger...');
   return Promise.all([
     import(SDK + 'firebase-app.js'),
     import(SDK + 'firebase-firestore.js'),
@@ -1047,13 +1047,13 @@ function num(v){
   return isFinite(n) ? n : 0;
 }
 function fmt(n){ return Math.round(n).toLocaleString('en-US'); }
-function money(n){ return '฿' + Math.round(n).toLocaleString('en-US'); }
+function money(n){ return '\u0e3f' + Math.round(n).toLocaleString('en-US'); }
 function moneyShort(n){
-  if(n >= 1000000) return '฿' + (n/1000000).toFixed(n >= 10000000 ? 0 : 1) + 'M';
-  if(n >= 1000) return '฿' + (n/1000).toFixed(n >= 100000 ? 0 : 1) + 'K';
-  return '฿' + Math.round(n);
+  if(n >= 1000000) return '\u0e3f' + (n/1000000).toFixed(n >= 10000000 ? 0 : 1) + 'M';
+  if(n >= 1000) return '\u0e3f' + (n/1000).toFixed(n >= 100000 ? 0 : 1) + 'K';
+  return '\u0e3f' + Math.round(n);
 }
-function cprText(c){ return c == null ? '-' : '฿' + (c >= 100 ? c.toFixed(0) : c.toFixed(2)); }
+function cprText(c){ return c == null ? '-' : '\u0e3f' + (c >= 100 ? c.toFixed(0) : c.toFixed(2)); }
 function dateParts(iso){
   if(!iso) return null;
   var p = String(iso).split('-');
@@ -1733,7 +1733,7 @@ function renderBudget(rows, monthLabels){
       '<td class="budget-month' + (open ? ' open' : '') + '" data-budget-toggle="' + key + '">' + esc(r.meta.label) + '</td>' +
       '<td class="num money-target">' + money(r.budget) + '</td>' +
       '<td class="num money-target">' + money(r.spent) + '<span class="channel-note">Used ' + pctUsed + '%</span></td>' +
-      '<td class="num money-used">' + money(r.left) + '<span class="channel-note">' + Math.max(0, 100 - pctUsed).toFixed(1).replace(/\\.0$/,'') + '% left</span></td>' +
+      '<td class="num money-used">' + money(r.left) + '<span class="channel-note">' + Math.max(0, 100 - pctUsed).toFixed(1).replace(/\.0$/,'') + '% left</span></td>' +
     '</tr>' + (open ? '<tr class="budget-detail"><td colspan="4">' + budgetDetail(r.items) + '</td></tr>' : '');
   }).join('');
   document.getElementById('tFoot').innerHTML = '<tr><td>Total</td><td class="num money-target">' + money(budget) + '</td><td class="num money-target">' + money(used) + '</td><td class="num money-used">' + money(left) + '</td></tr>';
@@ -1761,7 +1761,7 @@ function renderTargets(){
   renderTargetStats(rows);
   document.getElementById('tCount').textContent = rows.length + ' branch' + (rows.length === 1 ? '' : 'es');
   document.getElementById('tHead').innerHTML = '<tr>' +
-    '<th data-sort="channel">เธชเธฒเธเธฒ</th><th class="num" data-sort="monthTarget">Target / month</th><th class="num" data-sort="months">Months</th><th class="num" data-sort="annualTarget">Annual target</th>' +
+    '<th data-sort="channel">Branch</th><th class="num" data-sort="monthTarget">Target / month</th><th class="num" data-sort="months">Months</th><th class="num" data-sort="annualTarget">Annual target</th>' +
     '<th class="num" data-sort="made">Achieved</th><th class="num" data-sort="remaining">Remaining</th>' +
     monthLabels.map(function(m,i){ return '<th class="num" data-sort="m' + i + '">' + esc(m) + '</th>'; }).join('') + '<th></th></tr>';
   markSort(document.querySelector('.target-table'), state.sort.targets);
@@ -1778,7 +1778,7 @@ function renderTargets(){
     var made = r.sales.reduce(function(s,v){ return s + num(v); }, 0);
     var gap = Math.max(0, num(r.annualTarget) - made);
     return '<tr>' +
-      '<td class="name">' + esc(r.channel || '-') + '<span class="channel-note">เธขเธญเธ”เธเธฒเธขเธฃเธฒเธขเน€เธ”เธทเธญเธ</span></td>' +
+      '<td class="name">' + esc(r.channel || '-') + '<span class="channel-note">Monthly sales</span></td>' +
       '<td class="num">' + targetValue(r._key, 'monthTarget', r.monthTarget) + '</td>' +
       '<td class="num">' + targetValue(r._key, 'months', r.months) + '</td>' +
       '<td class="num">' + targetValue(r._key, 'annualTarget', r.annualTarget) + '</td>' +
@@ -2390,7 +2390,7 @@ function demo(){
 function recovered(){
   return [{
     id: uid(),
-    channel: 'เธฃเธตเธงเธดเธงเน€เธเธทเนเธญ',
+    channel: 'Review for',
     influencer: '',
     place: '',
     reviewDate: '',
