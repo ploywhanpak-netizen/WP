@@ -163,9 +163,19 @@ button,input,select,textarea{font:inherit;color:inherit}
 .table-wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;min-width:1080px}
 .billing-table{min-width:2500px}
-.billing-table tbody td{min-width:110px;white-space:nowrap}
+.billing-table th,.billing-table tbody td{min-width:120px;white-space:nowrap}
+.billing-table th:nth-child(1),.billing-table tbody td:nth-child(1){min-width:110px}
+.billing-table th:nth-child(2),.billing-table tbody td:nth-child(2){min-width:110px}
+.billing-table th:nth-child(3),.billing-table tbody td:nth-child(3){min-width:160px}
+.billing-table th:nth-child(4),.billing-table tbody td:nth-child(4){min-width:300px}
+.billing-table th:nth-child(5),.billing-table tbody td:nth-child(5){min-width:260px}
+.billing-table th:nth-child(6),.billing-table tbody td:nth-child(6){min-width:240px}
 .billing-table tbody td:nth-child(5),
 .billing-table tbody td:nth-child(7){white-space:normal;min-width:220px}
+.billing-table [contenteditable="true"]{cursor:text;border-radius:6px;outline:0}
+.billing-table [contenteditable="true"]:hover{background:#F7FAFC;box-shadow:inset 0 0 0 1px #D8E0E8}
+.billing-table [contenteditable="true"]:focus{background:#fff;box-shadow:inset 0 0 0 2px rgba(4,120,120,.24)}
+.billing-table td.actions{min-width:130px;white-space:nowrap}
 thead th{
   position:sticky;top:0;background:#F3F6F9;text-align:left;
   font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
@@ -922,9 +932,11 @@ function loadBilling(){
     return window.storage.get(BILLING_KEY).then(function(r){
       if(!r || !r.value) return;
       try { state.billing = JSON.parse(r.value) || []; } catch(e){ state.billing = []; }
+      dedupeBilling(false);
     }).catch(function(){});
   }
   try { state.billing = JSON.parse(localStorage.getItem(BILLING_KEY) || '[]') || []; } catch(e){ state.billing = []; }
+  dedupeBilling(false);
   return Promise.resolve();
 }
 function persistBillingLocal(){
@@ -1069,6 +1081,7 @@ function subscribeBilling(){
       list.push(v);
     });
     state.billing = list;
+    dedupeBilling(true);
     persistBillingLocal();
     render();
   }, function(err){
@@ -1970,11 +1983,48 @@ function billingUniqueCount(rows, key){
   });
   return Object.keys(seen).length;
 }
+function billingFingerprint(r){
+  return billingFields().map(function(f){
+    var v = f.money ? String(num(r[f.key])) : String(r[f.key] || '').trim().toLowerCase();
+    return v.replace(/\s+/g, ' ');
+  }).join('|');
+}
+function dedupeBilling(syncDelete){
+  var seen = {};
+  var kept = [];
+  var removed = [];
+  (state.billing || []).forEach(function(r){
+    var key = billingFingerprint(r);
+    if(!key.replace(/\|/g, '')) return;
+    if(seen[key]){
+      removed.push(r);
+    } else {
+      seen[key] = 1;
+      kept.push(r);
+    }
+  });
+  if(!removed.length) return 0;
+  state.billing = kept;
+  persistBillingLocal();
+  if(syncDelete && live() && !state.billingSyncOff){
+    var batch = fb.fs.writeBatch(fb.db);
+    removed.forEach(function(r){
+      if(r.id) batch.delete(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, r.id));
+    });
+    batch.commit().catch(function(e){
+      state.billingSyncOff = true;
+      syncFail(e);
+    });
+  }
+  return removed.length;
+}
 function renderBilling(){
   var fields = billingFields();
   var rows = filteredBilling();
   document.getElementById('bSearch').value = state.bf.q || '';
-  document.getElementById('bHead').innerHTML = fields.map(function(f){ return '<th' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>'; }).join('') + '<th></th>';
+  document.getElementById('bHead').innerHTML = fields.map(function(f){
+    return '<th' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>';
+  }).join('') + '<th class="actions">Actions</th>';
   document.getElementById('bCount').textContent = rows.length + ' shown of ' + (state.billing || []).length + ' total';
   var total = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
   document.getElementById('bStats').innerHTML = [
@@ -1993,7 +2043,7 @@ function renderBilling(){
   document.getElementById('bBody').innerHTML = rows.map(function(r){
     return '<tr>' + fields.map(function(f){
       var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
-      return '<td' + (f.money ? ' class="num"' : '') + '>' + v + '</td>';
+      return '<td' + (f.money ? ' class="num"' : '') + ' contenteditable="true" spellcheck="false" tabindex="0" data-billing-cell="' + esc(r.id) + '" data-field="' + esc(f.key) + '">' + v + '</td>';
     }).join('') + '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">Edit</button> <button class="icon-btn del" type="button" data-billing-del="' + esc(r.id) + '">Delete</button></td></tr>';
   }).join('');
   document.getElementById('bFoot').innerHTML = '<tr>' + fields.map(function(f){
@@ -2033,6 +2083,22 @@ function saveBilling(){
   closeModal('mdBilling');
   renderBilling();
   toast('Approval request saved');
+}
+function saveBillingCell(cell){
+  var id = cell.dataset.billingCell;
+  var field = cell.dataset.field;
+  var row = (state.billing || []).find(function(r){ return r.id === id; });
+  var meta = billingFields().find(function(f){ return f.key === field; });
+  if(!row || !meta) return;
+  var raw = cell.textContent || '';
+  var value = meta.money ? num(raw) : raw.trim();
+  if(!meta.money && value === '-') value = '';
+  if(meta.money ? num(row[field]) === value : String(row[field] || '') === value) return;
+  row[field] = value;
+  persistBillingLocal();
+  saveBillingOne(row);
+  renderBilling();
+  toast('Saved');
 }
 function exportBillingCSV(){
   var rows = filteredBilling();
@@ -2091,8 +2157,22 @@ function importBillingCSV(text){
     if(hasValue) incoming.push(item);
   });
   if(!incoming.length){ toast('No billing rows found in that file'); return; }
-  if(!confirm('Add ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + '?')) return;
+  var existing = {};
+  (state.billing || []).forEach(function(r){ existing[billingFingerprint(r)] = 1; });
+  var skipped = 0;
+  incoming = incoming.filter(function(r){
+    var key = billingFingerprint(r);
+    if(existing[key]){ skipped++; return false; }
+    existing[key] = 1;
+    return true;
+  });
+  if(!incoming.length){
+    toast('Skipped ' + skipped + ' duplicate billing row' + (skipped === 1 ? '' : 's'));
+    return;
+  }
+  if(!confirm('Add ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + (skipped ? ' and skip ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') : '') + '?')) return;
   state.billing = state.billing.concat(incoming);
+  dedupeBilling(false);
   persistBillingLocal();
   if(live() && !state.billingSyncOff){
     var batch = fb.fs.writeBatch(fb.db);
@@ -2103,7 +2183,7 @@ function importBillingCSV(text){
     });
   }
   renderBilling();
-  toast('Imported ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's'));
+  toast('Imported ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + (skipped ? ' · skipped ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') : ''));
 }
 
 function render(){
@@ -2479,6 +2559,29 @@ document.getElementById('fileBillingImport').addEventListener('change', function
 document.getElementById('bSearch').addEventListener('input', function(e){
   state.bf.q = e.target.value;
   renderBilling();
+});
+document.getElementById('bTable').addEventListener('focusin', function(e){
+  var cell = e.target.closest('[data-billing-cell]');
+  if(!cell) return;
+  var field = billingFields().find(function(f){ return f.key === cell.dataset.field; });
+  if(field && field.money){
+    cell.textContent = String(num(cell.textContent) || '');
+  }
+});
+document.getElementById('bTable').addEventListener('focusout', function(e){
+  var cell = e.target.closest('[data-billing-cell]');
+  if(cell) saveBillingCell(cell);
+});
+document.getElementById('bTable').addEventListener('keydown', function(e){
+  var cell = e.target.closest('[data-billing-cell]');
+  if(!cell) return;
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    cell.blur();
+  } else if(e.key === 'Escape'){
+    e.preventDefault();
+    renderBilling();
+  }
 });
 document.getElementById('bTable').addEventListener('click', function(e){
   var edit = e.target.closest('[data-billing-edit]');
