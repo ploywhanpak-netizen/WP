@@ -163,6 +163,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .table-wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;min-width:1080px}
 .billing-table{min-width:2500px}
+.billing-table tbody td{min-width:110px;white-space:nowrap}
+.billing-table tbody td:nth-child(5),
+.billing-table tbody td:nth-child(7){white-space:normal;min-width:220px}
 thead th{
   position:sticky;top:0;background:#F3F6F9;text-align:left;
   font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
@@ -995,12 +998,12 @@ function billingDocBody(r){
 }
 function saveBillingOne(r){
   persistBillingLocal();
-  if(!live()) return;
+  if(!live() || state.billingSyncOff) return;
   fb.fs.setDoc(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, r.id), billingDocBody(r)).catch(syncFail);
 }
 function removeBillingOne(id){
   persistBillingLocal();
-  if(!live()) return;
+  if(!live() || state.billingSyncOff) return;
   fb.fs.deleteDoc(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, id)).catch(syncFail);
 }
 
@@ -1069,6 +1072,7 @@ function subscribeBilling(){
     persistBillingLocal();
     render();
   }, function(err){
+    state.billingSyncOff = true;
     setStoreState(false, 'Billing sync error - ' + (err.code || 'check your Firestore rules'));
   });
 }
@@ -1179,6 +1183,7 @@ var now = new Date();
 var state = {
   records: [],
   billing: [],
+  billingSyncOff: false,
   view: 'records',
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
@@ -2081,7 +2086,14 @@ function importBillingCSV(text){
   if(!confirm('Add ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + '?')) return;
   state.billing = state.billing.concat(incoming);
   persistBillingLocal();
-  incoming.forEach(saveBillingOne);
+  if(live() && !state.billingSyncOff){
+    var batch = fb.fs.writeBatch(fb.db);
+    incoming.forEach(function(r){ batch.set(fb.fs.doc(fb.db, FIREBASE_BILLING_COLLECTION, r.id), billingDocBody(r)); });
+    batch.commit().catch(function(e){
+      state.billingSyncOff = true;
+      syncFail(e);
+    });
+  }
   renderBilling();
   toast('Imported ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's'));
 }
