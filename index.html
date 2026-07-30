@@ -912,6 +912,7 @@ body.gated .gate{display:flex}
           </div>
           <div class="spacer"></div>
           <button class="btn" type="button" id="btnImportEvents">Import JSON</button>
+          <button class="btn" type="button" id="btnExportEvents">Export JSON</button>
           <button class="btn primary" type="button" id="btnAddEvent">+ Add event</button>
           <input type="file" id="fileEventImport" accept=".json,application/json" hidden />
         </div>
@@ -3139,6 +3140,35 @@ function importEventsJSON(text){
   render();
   toast('Imported ' + added + ' event' + (added === 1 ? '' : 's') + (updated ? ' - updated ' + updated : ''));
 }
+function exportEventsJSON(){
+  if(!state.events.length){ toast('Nothing to export'); return; }
+  var out = {
+    app: 'Influencer Ledger',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    events: state.events.map(function(ev){
+      var daily = {};
+      (ev.sales || []).forEach(function(d){ if(d.date) daily[d.date] = String(num(d.amount)); });
+      return {
+        id: ev.id,
+        name: ev.name || '',
+        location: ev.place || '',
+        start: ev.startDate || '',
+        end: ev.endDate || '',
+        remark: ev.remark || '',
+        dailySales: daily
+      };
+    })
+  };
+  var blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  var stamp = now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate());
+  a.download = 'events-export-' + stamp + '.json';
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  toast('Events exported');
+}
 
 function render(){
   buildFilters();
@@ -3720,6 +3750,7 @@ document.getElementById('eYear').addEventListener('change', function(e){
 });
 document.getElementById('btnAddEvent').addEventListener('click', function(){ openEvent(null); });
 document.getElementById('btnImportEvents').addEventListener('click', pickEventImportFile);
+document.getElementById('btnExportEvents').addEventListener('click', exportEventsJSON);
 document.getElementById('fileEventImport').addEventListener('change', function(e){
   var f = e.target.files && e.target.files[0];
   if(!f) return;
