@@ -2502,8 +2502,7 @@ function billingTableFields(){
     store: true,
     expenseType: true,
     supplier: true,
-    amount: true,
-    company: true
+    amount: true
   };
   return billingFields().filter(function(f){ return visible[f.key]; });
 }
