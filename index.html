@@ -646,18 +646,19 @@ body.gated .gate{display:flex}
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Requests</button>
         <div class="nav-items">
           <button class="nav-link" type="button" data-view="billing"><span class="idx">05</span> Projects Requests</button>
+          <button class="nav-link" type="button" data-view="database"><span class="idx">06</span> ฐานข้อมูล</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="event">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Event</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="events"><span class="idx">06</span> Events</button>
+          <button class="nav-link" type="button" data-view="events"><span class="idx">07</span> Events</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="settings">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Settings</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="settings"><span class="idx">07</span> Settings</button>
+          <button class="nav-link" type="button" data-view="settings"><span class="idx">08</span> Settings</button>
         </div>
       </div>
     </nav>
@@ -895,21 +896,6 @@ body.gated .gate{display:flex}
       </header>
       <div class="content">
         <div class="stats" id="bStats"></div>
-        <div class="card" id="bPendingCard" style="margin-bottom:20px">
-          <div class="card-head">
-            <h3>Needs Attention</h3>
-            <span class="hint" id="bPendingCount"></span>
-          </div>
-          <div class="table-wrap">
-            <table id="bPendingTable">
-              <thead>
-                <tr><th>PR No.</th><th>Store</th><th>Supplier</th><th class="num">Amount</th><th>Status</th><th class="actions">Actions</th></tr>
-              </thead>
-              <tbody id="bPendingBody"></tbody>
-            </table>
-          </div>
-          <div id="bPendingEmpty"></div>
-        </div>
         <div class="card billing-card">
           <div class="card-head">
             <h3>Projects Requests</h3>
@@ -925,6 +911,40 @@ body.gated .gate{display:flex}
             </table>
           </div>
           <div id="bEmpty"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DATABASE (approved PRs, view-only) ============ -->
+    <section class="view" id="view-database">
+      <header class="topbar">
+        <h2>ฐานข้อมูล</h2>
+        <p class="sub">Archive of signed (เซ็นแล้ว) project requests. View only.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="dbSearch">Search</label>
+            <input class="search" id="dbSearch" type="search" placeholder="PR, store, supplier, company" />
+          </div>
+          <div class="spacer"></div>
+        </div>
+      </header>
+      <div class="content">
+        <div class="stats" id="dbStats"></div>
+        <div class="card billing-card">
+          <div class="card-head">
+            <h3>ฐานข้อมูล</h3>
+            <span class="hint" id="dbCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="billing-table" id="dbTable">
+              <thead>
+                <tr id="dbHead"></tr>
+              </thead>
+              <tbody id="dbBody"></tbody>
+              <tfoot id="dbFoot"></tfoot>
+            </table>
+          </div>
+          <div id="dbEmpty"></div>
         </div>
       </div>
     </section>
@@ -1509,6 +1529,7 @@ function clearBillingData(){
   persistBillingLocal();
   deleteBillingRemote(rows);
   renderBilling();
+  renderDatabase();
   toast('Billing data cleared');
 }
 
@@ -1594,6 +1615,7 @@ function subscribeBilling(){
     migrateBillingSignature();
     persistBillingLocal();
     render();
+    renderDatabase();
   }, function(err){
     state.billingSyncOff = true;
     setStoreState(false, 'Billing sync error - ' + (err.code || 'check your Firestore rules'));
@@ -1728,7 +1750,7 @@ var state = {
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
   tf: { year:String(now.getFullYear()) },
   ef: { year:String(now.getFullYear()), month:'all' },
-  sort: { records:null, analytics:null, targets:null, budget:null, billing:null, settings:null },
+  sort: { records:null, analytics:null, targets:null, budget:null, billing:null, database:null, settings:null },
   targets: {},
   settings: defaultSettings(),
   editTarget: null,
@@ -2701,18 +2723,18 @@ function collectBillingItems(){
 }
 function renderBilling(){
   var fields = billingTableFields();
-  var rows = sortRows(filteredBilling(), state.sort.billing, sortBillingValue);
+  var allFiltered = sortRows(filteredBilling(), state.sort.billing, sortBillingValue);
+  var rows = allFiltered.filter(function(r){ return String(r.signature || '').trim() !== 'เซ็นแล้ว'; });
   document.getElementById('bSearch').value = state.bf.q || '';
   document.getElementById('bHead').innerHTML = fields.map(function(f){
     return '<th data-sort="' + esc(f.key) + '"' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>';
   }).join('') + '<th class="actions">Actions</th>';
   markSort(document.getElementById('bTable'), state.sort.billing);
-  document.getElementById('bCount').textContent = rows.length + ' shown of ' + (state.billing || []).length + ' total';
+  var totalNonApproved = (state.billing || []).filter(function(r){ return String(r.signature || '').trim() !== 'เซ็นแล้ว'; }).length;
+  document.getElementById('bCount').textContent = rows.length + ' shown of ' + totalNonApproved + ' total (เซ็นแล้ว moved to ฐานข้อมูล)';
   var total = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
-  var approvedRows = rows.filter(function(r){ return String(r.signature || '').trim() === 'เซ็นแล้ว'; });
   var rejectedRows = rows.filter(function(r){ return String(r.signature || '').trim() === 'ไม่อนุมัติ'; });
-  var pendingRows = rows.filter(function(r){ var v = String(r.signature || '').trim(); return v !== 'เซ็นแล้ว' && v !== 'ไม่อนุมัติ'; });
-  var approvedTotal = approvedRows.reduce(function(s,r){ return s + num(r.amount); }, 0);
+  var pendingRows = rows.filter(function(r){ return String(r.signature || '').trim() !== 'ไม่อนุมัติ'; });
   var rejectedTotal = rejectedRows.reduce(function(s,r){ return s + num(r.amount); }, 0);
   var pendingTotal = pendingRows.reduce(function(s,r){ return s + num(r.amount); }, 0);
   document.getElementById('bStats').innerHTML = [
@@ -2720,35 +2742,18 @@ function renderBilling(){
     statCard('accent-spend', 'Amount', money(total), 'Total requested'),
     statCard('', 'Suppliers', fmt(billingUniqueCount(rows, 'supplier')), 'Unique suppliers'),
     statCard('', 'Companies', fmt(billingUniqueCount(rows, 'company')), 'Unique companies'),
-    statCard('accent-eng', 'เซ็นแล้ว', money(approvedTotal), approvedRows.length + ' request' + (approvedRows.length === 1 ? '' : 's')),
     statCard('', 'รออนุมัติ', money(pendingTotal), pendingRows.length + ' request' + (pendingRows.length === 1 ? '' : 's')),
     statCard('', 'ไม่อนุมัติ', money(rejectedTotal), rejectedRows.length + ' request' + (rejectedRows.length === 1 ? '' : 's'))
   ].join('');
 
-  var attentionRows = rejectedRows.concat(pendingRows);
-  document.getElementById('bPendingCount').textContent = attentionRows.length + ' of ' + rows.length + ' shown';
-  document.getElementById('bPendingBody').innerHTML = attentionRows.map(function(r){
-    return '<tr data-billing-row="' + esc(r.id) + '">' +
-      '<td class="name">' + esc(r.prNo || '-') + '</td>' +
-      '<td class="sub">' + esc(r.store || '-') + '</td>' +
-      '<td class="sub">' + esc(r.supplier || '-') + '</td>' +
-      '<td class="num">' + money(num(r.amount)) + '</td>' +
-      '<td><span class="status-badge ' + billingStatusClass(r.signature) + '">' + esc(r.signature || 'รออนุมัติ') + '</span></td>' +
-      '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">Edit</button> <button class="icon-btn del" type="button" data-billing-del="' + esc(r.id) + '">Delete</button></td>' +
-    '</tr>';
-  }).join('');
-  document.getElementById('bPendingEmpty').innerHTML = attentionRows.length ? '' : '<div class="empty"><h4>Nothing waiting</h4><p>All shown requests are approved.</p></div>';
-
   if(!rows.length){
     document.getElementById('bBody').innerHTML = '';
     document.getElementById('bFoot').innerHTML = '';
-    document.getElementById('bEmpty').innerHTML = '<div class="empty"><h4>Add your first approval request</h4><p>Use + Add request to record PR, supplier and payment documents.</p></div>';
+    document.getElementById('bEmpty').innerHTML = '<div class="empty"><h4>Nothing waiting</h4><p>All requests are signed (see ฐานข้อมูล), or add a new one with + Add request.</p></div>';
     return;
   }
   document.getElementById('bEmpty').innerHTML = '';
-  var nonApprovedRows = rows.filter(function(r){ return String(r.signature || '').trim() !== 'เซ็นแล้ว'; });
-  var tableRows = nonApprovedRows.concat(approvedRows);
-  document.getElementById('bBody').innerHTML = tableRows.map(function(r){
+  document.getElementById('bBody').innerHTML = rows.map(function(r){
     return '<tr data-billing-row="' + esc(r.id) + '">' + fields.map(function(f){
       if(f.key === 'signature'){
         return '<td><span class="status-badge ' + billingStatusClass(r.signature) + '">' + esc(r.signature || 'รออนุมัติ') + '</span></td>';
@@ -2762,6 +2767,45 @@ function renderBilling(){
     if(f.key === 'amount') return '<td class="num">' + money(total) + '</td>';
     return '<td></td>';
   }).join('') + '<td></td></tr>';
+}
+function renderDatabase(){
+  var fields = billingTableFields();
+  var rows = sortRows(filteredBilling(), state.sort.database, sortBillingValue)
+    .filter(function(r){ return String(r.signature || '').trim() === 'เซ็นแล้ว'; });
+  document.getElementById('dbSearch').value = state.bf.q || '';
+  document.getElementById('dbHead').innerHTML = fields.map(function(f){
+    return '<th data-sort="' + esc(f.key) + '"' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>';
+  }).join('');
+  markSort(document.getElementById('dbTable'), state.sort.database);
+  var totalApproved = (state.billing || []).filter(function(r){ return String(r.signature || '').trim() === 'เซ็นแล้ว'; }).length;
+  document.getElementById('dbCount').textContent = rows.length + ' shown of ' + totalApproved + ' total';
+  var total = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
+  document.getElementById('dbStats').innerHTML = [
+    statCard('accent-eng', 'Signed requests', fmt(rows.length), 'เซ็นแล้ว'),
+    statCard('accent-spend', 'Amount', money(total), 'Total signed'),
+    statCard('', 'Suppliers', fmt(billingUniqueCount(rows, 'supplier')), 'Unique suppliers')
+  ].join('');
+  if(!rows.length){
+    document.getElementById('dbBody').innerHTML = '';
+    document.getElementById('dbFoot').innerHTML = '';
+    document.getElementById('dbEmpty').innerHTML = '<div class="empty"><h4>No signed requests yet</h4><p>Requests move here automatically once marked เซ็นแล้ว on the Projects Requests page.</p></div>';
+    return;
+  }
+  document.getElementById('dbEmpty').innerHTML = '';
+  document.getElementById('dbBody').innerHTML = rows.map(function(r){
+    return '<tr>' + fields.map(function(f){
+      if(f.key === 'signature'){
+        return '<td><span class="status-badge ' + billingStatusClass(r.signature) + '">' + esc(r.signature || '') + '</span></td>';
+      }
+      var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
+      return '<td' + (f.money ? ' class="num"' : '') + '>' + v + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+  document.getElementById('dbFoot').innerHTML = '<tr>' + fields.map(function(f){
+    if(f.key === 'prNo') return '<td>Total</td>';
+    if(f.key === 'amount') return '<td class="num">' + money(total) + '</td>';
+    return '<td></td>';
+  }).join('') + '</tr>';
 }
 function openBilling(id){
   state.editingBillingId = id || null;
@@ -2908,6 +2952,7 @@ function saveBilling(){
   saveBillingOne(target);
   closeModal('mdBilling');
   renderBilling();
+  renderDatabase();
   toast('Approval request saved');
 }
 function saveBillingCell(cell){
@@ -2924,6 +2969,7 @@ function saveBillingCell(cell){
   persistBillingLocal();
   saveBillingOne(row);
   renderBilling();
+  renderDatabase();
   toast('Saved');
 }
 function renderSettings(){
@@ -3057,6 +3103,7 @@ function importBillingCSV(text){
     });
   }
   renderBilling();
+  renderDatabase();
   toast('Imported ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + (skipped ? ' · skipped ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') : ''));
 }
 
@@ -3593,6 +3640,7 @@ function render(){
   if(state.view === 'records') renderRecords();
   else if(state.view === 'analytics') renderAnalytics();
   else if(state.view === 'billing') renderBilling();
+  else if(state.view === 'database') renderDatabase();
   else if(state.view === 'settings') renderSettings();
   else if(state.view === 'events') renderEvents();
   else renderTargets();
@@ -3850,6 +3898,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), functi
     document.getElementById('view-analytics').classList.toggle('active', state.view === 'analytics');
     document.getElementById('view-targets').classList.toggle('active', state.view === 'targets' || state.view === 'budget');
     document.getElementById('view-billing').classList.toggle('active', state.view === 'billing');
+    document.getElementById('view-database').classList.toggle('active', state.view === 'database');
     document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
     document.getElementById('view-events').classList.toggle('active', state.view === 'events');
     render();
@@ -4068,29 +4117,23 @@ document.getElementById('bTable').addEventListener('click', function(e){
     state.billing = state.billing.filter(function(r){ return r.id !== del.dataset.billingDel; });
     removeBillingOne(del.dataset.billingDel);
     renderBilling();
+    renderDatabase();
     return;
   }
   if(e.target.closest('button,input,select,textarea,a')) return;
   var row = e.target.closest('[data-billing-row]');
   if(row) openBilling(row.dataset.billingRow);
 });
-document.getElementById('bPendingTable').addEventListener('click', function(e){
-  var edit = e.target.closest('[data-billing-edit]');
-  if(edit){
-    openBilling(edit.dataset.billingEdit);
-    return;
+document.getElementById('dbSearch').addEventListener('input', function(e){
+  state.bf.q = e.target.value;
+  renderDatabase();
+});
+document.getElementById('dbTable').addEventListener('click', function(e){
+  var th = e.target.closest('th[data-sort]');
+  if(th){
+    setSort('database', th.dataset.sort);
+    renderDatabase();
   }
-  var del = e.target.closest('[data-billing-del]');
-  if(del){
-    if(!confirm('Delete this approval request?')) return;
-    state.billing = state.billing.filter(function(r){ return r.id !== del.dataset.billingDel; });
-    removeBillingOne(del.dataset.billingDel);
-    renderBilling();
-    return;
-  }
-  if(e.target.closest('button,input,select,textarea,a')) return;
-  var row = e.target.closest('[data-billing-row]');
-  if(row) openBilling(row.dataset.billingRow);
 });
 function saveEngagementTarget(rawValue, sourceEl){
   var v = num(rawValue);
