@@ -247,11 +247,11 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .chip.high{background:var(--red-soft);color:var(--red)}
 .chip.none{background:#EFF3F7;color:var(--muted)}
 .eng-btn{
-  border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 9px;cursor:pointer;
-  display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;
+  border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;
+  display:inline-flex;flex-direction:column;align-items:flex-end;gap:1px;font-family:var(--mono);font-size:13.5px;line-height:1.3;
 }
 .eng-btn:hover{border-color:var(--teal);color:var(--teal)}
-.eng-btn .links{font-size:10.5px;color:var(--muted)}
+.eng-btn .links{font-size:10px;color:var(--muted);font-weight:400}
 .row-actions{display:flex;gap:6px;justify-content:flex-end}
 .icon-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 8px;cursor:pointer;font-size:11.5px;color:var(--muted)}
 .icon-btn:hover{color:var(--text);border-color:#A9B7C4}
@@ -461,6 +461,8 @@ legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px}
 .metrics .f{margin:0}
 .metrics input{font-family:var(--mono);text-align:right}
+.readonly-val{font-family:var(--mono);text-align:right;padding:8px 9px;border:1px solid var(--line);border-radius:7px;background:#FAFCFE;color:var(--text)}
+.link-row.readonly .link-url{cursor:default}
 .link-sum{
   display:flex;justify-content:space-between;align-items:center;margin-top:10px;
   font-family:var(--mono);font-size:11.5px;color:var(--muted);
@@ -1715,6 +1717,7 @@ var state = {
   budgetOpen: {},
   editingId: null,
   linksId: null,
+  linksReadonly: false,
   draftLinks: [],
   events: [],
   editingEventId: null,
@@ -3651,25 +3654,53 @@ function ensureVisible(r){
 }
 
 /* ---------------- engagement modal ---------------- */
-function openLinks(id){
+function openLinks(id, readonly){
   var r = state.records.find(function(x){ return x.id === id; });
   if(!r) return;
   state.linksId = id;
+  state.linksReadonly = !!readonly;
   state.draftLinks = (r.links || []).map(function(l){
     var c = { url:l.url, views:l.views, done: isUrl(l.url) };
     ENG_KEYS.forEach(function(k){ c[k] = l[k]; });
     return c;
   });
-  if(!state.draftLinks.length) state.draftLinks.push(blankLink());
-  document.getElementById('mdLinksTitle').textContent = 'Total engagement - ' + (r.channel || 'record');
+  if(!state.draftLinks.length && !readonly) state.draftLinks.push(blankLink());
+  document.getElementById('mdLinksTitle').textContent = (readonly ? 'Total engagement (view only) - ' : 'Total engagement - ') + (r.channel || 'record');
+  document.getElementById('mdLinksSub').style.display = readonly ? 'none' : '';
+  document.getElementById('btnAddLink').style.display = readonly ? 'none' : '';
+  document.getElementById('btnSaveLinks').style.display = readonly ? 'none' : '';
   renderLinks();
   openModal('mdLinks');
-  setTimeout(function(){
-    var first = document.querySelector('#linkList input[data-k="url"]');
-    if(first) first.focus();
-  }, 30);
+  if(!readonly){
+    setTimeout(function(){
+      var first = document.querySelector('#linkList input[data-k="url"]');
+      if(first) first.focus();
+    }, 30);
+  }
 }
 function renderLinks(){
+  if(state.linksReadonly){
+    document.getElementById('linkList').innerHTML = state.draftLinks.length ? state.draftLinks.map(function(l){
+      var p = detectPlatform(l.url);
+      return '<div class="link-row readonly">' +
+        '<div class="link-top">' +
+          (isUrl(l.url)
+            ? '<a class="link-url" href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer" title="Open this post in a new tab"><span>' + esc(l.url) + '</span><span class="go">&#8599;</span></a>'
+            : '<span class="link-url"><span>' + esc(l.url || 'No link') + '</span></span>') +
+          '<span class="plat" data-p="' + p.id + '">' + esc(p.label) + '</span>' +
+        '</div>' +
+        '<div class="metrics">' +
+          ENG_KEYS.concat(['views']).map(function(k){
+            var label = k === 'views' ? 'Views (not counted)' : (k.charAt(0).toUpperCase() + k.slice(1));
+            return '<div class="f"><label>' + label + '</label><div class="readonly-val">' + fmt(num(l[k])) + '</div></div>';
+          }).join('') +
+        '</div>' +
+        '<div class="link-sum"><span>Engagement from this post</span><strong>' + fmt(linkEngagement(l)) + '</strong></div>' +
+      '</div>';
+    }).join('') : '<p class="chart-note" style="padding:8px 0">No links added for this record yet.</p>';
+    updateEngTotal();
+    return;
+  }
   document.getElementById('linkList').innerHTML = state.draftLinks.map(function(l, i){
     var p = detectPlatform(l.url);
     var locked = !!l.done && isUrl(l.url);
@@ -4021,6 +4052,24 @@ document.getElementById('bTable').addEventListener('click', function(e){
   var row = e.target.closest('[data-billing-row]');
   if(row) openBilling(row.dataset.billingRow);
 });
+document.getElementById('bPendingTable').addEventListener('click', function(e){
+  var edit = e.target.closest('[data-billing-edit]');
+  if(edit){
+    openBilling(edit.dataset.billingEdit);
+    return;
+  }
+  var del = e.target.closest('[data-billing-del]');
+  if(del){
+    if(!confirm('Delete this approval request?')) return;
+    state.billing = state.billing.filter(function(r){ return r.id !== del.dataset.billingDel; });
+    removeBillingOne(del.dataset.billingDel);
+    renderBilling();
+    return;
+  }
+  if(e.target.closest('button,input,select,textarea,a')) return;
+  var row = e.target.closest('[data-billing-row]');
+  if(row) openBilling(row.dataset.billingRow);
+});
 function saveEngagementTarget(rawValue, sourceEl){
   var v = num(rawValue);
   if(v <= 0){
@@ -4267,7 +4316,7 @@ document.getElementById('rTable').addEventListener('click', function(e){
 });
 document.querySelector('#view-analytics .card:not(.chart-card) table').addEventListener('click', function(e){
   var linkBtn = e.target.closest('[data-links]');
-  if(linkBtn){ openLinks(linkBtn.dataset.links); return; }
+  if(linkBtn){ openLinks(linkBtn.dataset.links, true); return; }
   if(e.target.closest('button,input,select,textarea,a')) return;
   var tr = e.target.closest('tbody tr');
   if(tr) tr.classList.toggle('open');
