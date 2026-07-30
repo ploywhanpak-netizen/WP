@@ -2726,7 +2726,9 @@ function renderBilling(){
     return;
   }
   document.getElementById('bEmpty').innerHTML = '';
-  document.getElementById('bBody').innerHTML = rows.map(function(r){
+  var nonApprovedRows = rows.filter(function(r){ return String(r.signature || '').trim() !== 'อนุมัติแล้ว'; });
+  var tableRows = nonApprovedRows.concat(approvedRows);
+  document.getElementById('bBody').innerHTML = tableRows.map(function(r){
     return '<tr data-billing-row="' + esc(r.id) + '">' + fields.map(function(f){
       if(f.key === 'signature'){
         return '<td><span class="chip ' + billingStatusClass(r.signature) + '">' + esc(r.signature || 'รออนุมัติ') + '</span></td>';
