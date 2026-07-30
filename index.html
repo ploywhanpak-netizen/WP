@@ -157,6 +157,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px}
 #rStats,#aStats{grid-template-columns:repeat(6,minmax(0,1fr))}
 #tStats,#eStats{grid-template-columns:repeat(4,minmax(0,1fr))}
+#bStats{grid-template-columns:repeat(7,minmax(0,1fr))}
 .stat{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;font:inherit;color:inherit}
 .stat:focus-visible{outline:2px solid rgba(4,120,120,.28);outline-offset:2px}
 .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -2502,9 +2503,16 @@ function billingTableFields(){
     store: true,
     expenseType: true,
     supplier: true,
-    amount: true
+    amount: true,
+    signature: true
   };
   return billingFields().filter(function(f){ return visible[f.key]; });
+}
+function billingStatusClass(v){
+  v = String(v || '').trim();
+  if(v === 'อนุมัติแล้ว') return 'good';
+  if(v === 'ไม่อนุมัติ') return 'high';
+  return 'mid';
 }
 function filteredBilling(){
   var q = String(state.bf.q || '').trim().toLowerCase();
@@ -2662,11 +2670,20 @@ function renderBilling(){
   markSort(document.getElementById('bTable'), state.sort.billing);
   document.getElementById('bCount').textContent = rows.length + ' shown of ' + (state.billing || []).length + ' total';
   var total = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
+  var approvedRows = rows.filter(function(r){ return String(r.signature || '').trim() === 'อนุมัติแล้ว'; });
+  var rejectedRows = rows.filter(function(r){ return String(r.signature || '').trim() === 'ไม่อนุมัติ'; });
+  var pendingRows = rows.filter(function(r){ var v = String(r.signature || '').trim(); return v !== 'อนุมัติแล้ว' && v !== 'ไม่อนุมัติ'; });
+  var approvedTotal = approvedRows.reduce(function(s,r){ return s + num(r.amount); }, 0);
+  var rejectedTotal = rejectedRows.reduce(function(s,r){ return s + num(r.amount); }, 0);
+  var pendingTotal = pendingRows.reduce(function(s,r){ return s + num(r.amount); }, 0);
   document.getElementById('bStats').innerHTML = [
     statCard('', 'Requests', fmt(rows.length), 'Approval rows'),
     statCard('accent-spend', 'Amount', money(total), 'Total requested'),
     statCard('', 'Suppliers', fmt(billingUniqueCount(rows, 'supplier')), 'Unique suppliers'),
-    statCard('', 'Companies', fmt(billingUniqueCount(rows, 'company')), 'Unique companies')
+    statCard('', 'Companies', fmt(billingUniqueCount(rows, 'company')), 'Unique companies'),
+    statCard('accent-eng', 'อนุมัติแล้ว', money(approvedTotal), approvedRows.length + ' request' + (approvedRows.length === 1 ? '' : 's')),
+    statCard('', 'รออนุมัติ', money(pendingTotal), pendingRows.length + ' request' + (pendingRows.length === 1 ? '' : 's')),
+    statCard('', 'ไม่อนุมัติ', money(rejectedTotal), rejectedRows.length + ' request' + (rejectedRows.length === 1 ? '' : 's'))
   ].join('');
   if(!rows.length){
     document.getElementById('bBody').innerHTML = '';
@@ -2677,6 +2694,9 @@ function renderBilling(){
   document.getElementById('bEmpty').innerHTML = '';
   document.getElementById('bBody').innerHTML = rows.map(function(r){
     return '<tr data-billing-row="' + esc(r.id) + '">' + fields.map(function(f){
+      if(f.key === 'signature'){
+        return '<td><span class="chip ' + billingStatusClass(r.signature) + '">' + esc(r.signature || 'รออนุมัติ') + '</span></td>';
+      }
       var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
       return '<td' + (f.money ? ' class="num"' : '') + '>' + v + '</td>';
     }).join('') + '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">Edit</button> <button class="icon-btn del" type="button" data-billing-del="' + esc(r.id) + '">Delete</button></td></tr>';
@@ -2715,7 +2735,7 @@ function openBilling(id){
       '<h4>เอกสารและผู้เกี่ยวข้อง</h4>' +
       '<div class="billing-form-grid">' +
         billingControl('workIn', 'Work in', get('workIn'), { placeholder:'ผู้รับผิดชอบ/ทีม' }) +
-        billingControl('signature', 'ลายเซ็น', get('signature'), { select:true, options:fieldOptions('signature', get('signature'), ['รออนุมัติ', 'อนุมัติแล้ว']) }) +
+        billingControl('signature', 'ลายเซ็น', get('signature'), { select:true, options:fieldOptions('signature', get('signature'), ['รออนุมัติ', 'อนุมัติแล้ว', 'ไม่อนุมัติ']) }) +
       '</div>' +
       '<div class="billing-attach"><div class="billing-attach-grid">' +
         billingControl('file2', 'ไฟล์แนบ-2', get('file2'), { placeholder:'ลิงก์หรือชื่อไฟล์' }) +
