@@ -982,6 +982,19 @@ body.gated .gate{display:flex}
         </div>
       </header>
       <div class="content">
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head">
+            <h3>Engagement KPI</h3>
+            <span class="hint">Used in Engagement KPI and Dashboard target rings</span>
+          </div>
+          <div style="padding:14px 16px">
+            <div class="f" style="max-width:220px;margin-bottom:0">
+              <label for="engagementTargetInput">Monthly engagement target</label>
+              <input id="engagementTargetInput" type="number" min="1" step="100" />
+              <span class="help">How much likes+comments+shares counts as "on target" per month</span>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <h3>Billing settings</h3>
@@ -1070,7 +1083,10 @@ body.gated .gate{display:flex}
         </div>
       </header>
       <div class="content">
-        <div id="dOverview"></div>
+        <div class="grid2" id="dTopCards">
+          <div id="dOverview"></div>
+          <div id="dEngagement"></div>
+        </div>
         <div class="grid2" id="dGrid"></div>
       </div>
     </section>
@@ -1298,7 +1314,7 @@ var FIREBASE_BILLING_COLLECTION = 'approvalRequests';
 var FIREBASE_EVENTS_COLLECTION = 'boothEvents';
 var FIREBASE_SOCIAL_COLLECTION = 'socialAnalytics';
 var FIREBASE_SOCIAL_DOC = 'main';
-var KPI_MONTHLY = 20000;           /* engagement target per month */
+/* Monthly engagement KPI is user-editable now - see engagementTarget() and state.settings.engagementTarget */
 var SIGN_IN = 'none';              /* no login screen; Firestore rules control who can read/write */
 var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
 
@@ -1435,7 +1451,8 @@ function persistSocial(){
 }
 function defaultSettings(){
   return {
-    expenseTypes: ['Influencer', 'Ads', 'Event', 'Production', 'Media', 'ของใช้สิ้นเปลือง']
+    expenseTypes: ['Influencer', 'Ads', 'Event', 'Production', 'Media', 'ของใช้สิ้นเปลือง'],
+    engagementTarget: 20000
   };
 }
 function normalizeSettings(v){
@@ -1448,7 +1465,13 @@ function normalizeSettings(v){
       base.expenseTypes.push(label);
     }
   });
+  var t = v ? num(v.engagementTarget) : 0;
+  base.engagementTarget = t > 0 ? t : 20000;
   return base;
+}
+function engagementTarget(){
+  var t = num(state.settings && state.settings.engagementTarget);
+  return t > 0 ? t : 20000;
 }
 function loadSettings(){
   if(canStore){
@@ -2063,7 +2086,7 @@ function goalFor(f, rows){
     rows.forEach(function(r){ var p = dateParts(r[f.basis]); if(p) seen[p.y + '-' + p.m] = 1; });
     months = Math.max(1, Object.keys(seen).length);
   }
-  return KPI_MONTHLY * months;
+  return engagementTarget() * months;
 }
   function goalNote(eng, goal){
     if(!goal) return '';
@@ -2202,10 +2225,10 @@ function engShort(n){
   return String(Math.round(n));
 }
 function bucketTarget(mode, f){
-  if(mode === 'year') return KPI_MONTHLY * 12;
-  if(mode === 'month') return KPI_MONTHLY;
+  if(mode === 'year') return engagementTarget() * 12;
+  if(mode === 'month') return engagementTarget();
   var dim = new Date(+f.year, +f.month, 0).getDate() || 30;
-  return KPI_MONTHLY / dim;
+  return engagementTarget() / dim;
 }
 function periodWord(mode){ return mode === 'year' ? 'year' : (mode === 'month' ? 'month' : 'day'); }
 
@@ -2993,6 +3016,8 @@ function saveBillingCell(cell){
   toast('Saved');
 }
 function renderSettings(){
+  var etInput = document.getElementById('engagementTargetInput');
+  if(etInput && document.activeElement !== etInput) etInput.value = engagementTarget();
   var list = sortRows(expenseTypes().map(function(v, i){ return { label:v, index:i }; }), state.sort.settings, function(r){ return r.label; });
   var body = document.getElementById('expenseTypeBody');
   document.getElementById('expenseTypeInput').value = '';
@@ -3832,8 +3857,63 @@ function renderDashboardOverview(){
       '<p class="chart-note" style="padding:10px 0 0">' + esc(metricMeta.label) + ' - ' + esc(MONTHS[month-1]) + ' ' + year + '. Click a platform to filter the cards below.</p>' +
     '</div>';
 }
+function renderEngagementTarget(){
+  var year = +state.df.year, month = +state.df.month;
+  var rows = state.records.filter(function(r){
+    var p = dateParts(r.publishDate);
+    return p && p.y === year && p.m === month;
+  });
+  var achieved = rows.reduce(function(s,r){ return s + engagement(r); }, 0);
+  var target = engagementTarget();
+  var fraction = target > 0 ? achieved / target : 0;
+  var pct = target > 0 ? Math.round(achieved / target * 100) : 0;
+  var hit = achieved >= target;
+  var ringColor = hit ? 'var(--teal)' : 'var(--red)';
+  var ringSoft = hit ? 'var(--teal-soft)' : 'var(--red-soft)';
+  var branchColors = ['var(--teal)','var(--clay)','var(--focus)','var(--violet)','var(--pink)','var(--sky)'];
+
+  var byPlace = {};
+  rows.forEach(function(r){
+    var key = placeKey(r.place) || '(no location)';
+    byPlace[key] = (byPlace[key] || 0) + engagement(r);
+  });
+  var branches = Object.keys(byPlace).map(function(k){ return { place:k, eng:byPlace[k] }; })
+    .sort(function(a,b){ return b.eng - a.eng; });
+
+  var legend = branches.length ? branches.map(function(b, i){
+    var pctOfTarget = target > 0 ? Math.round(b.eng / target * 100) : 0;
+    return '<div class="donut-legend-item" style="cursor:default">' +
+      '<span class="dot" style="background:' + branchColors[i % branchColors.length] + '"></span>' +
+      '<span class="dl-name">' + esc(b.place) + '</span>' +
+      '<span class="dl-pct">' + pctOfTarget + '% of KPI</span>' +
+      '<span class="dl-val">' + fmt(b.eng) + '</span>' +
+    '</div>';
+  }).join('') : '<p class="chart-note" style="padding:4px 0 0">No bookings publish in this month yet.</p>';
+
+  document.getElementById('dEngagement').innerHTML =
+    '<div class="donut-card">' +
+      '<div class="donut-card-head"><h3>Engagement Target</h3><span class="chart-note" style="padding:0">' + esc(MONTHS[month-1]) + ' ' + year + '</span></div>' +
+      '<div class="donut-body">' +
+        ringSVG(ringColor, ringSoft, fraction, pct + '%') +
+        '<div class="donut-legend">' +
+          '<div style="margin-bottom:2px">' +
+            '<div style="font-family:var(--display);font-size:20px;font-weight:700;color:' + (hit ? 'var(--teal)' : 'var(--text)') + ';display:flex;align-items:baseline;gap:5px">' +
+              '<span>' + fmt(achieved) + '</span>' +
+              '<span style="font-size:13px;color:var(--muted);font-weight:500">/</span>' +
+              '<input id="engTargetQuickInput" type="number" min="1" step="100" value="' + target + '" ' +
+                'style="width:82px;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted);background:#fff" ' +
+                'title="Click to change the monthly target" />' +
+            '</div>' +
+            '<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">engagement this month · which branch achieved how much:</div>' +
+          '</div>' +
+          legend +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
 function renderSocialDashboard(){
   renderDashboardOverview();
+  renderEngagementTarget();
   document.getElementById('dGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.df, true); }).join('');
 }
 
@@ -4299,6 +4379,22 @@ document.getElementById('bTable').addEventListener('click', function(e){
   var row = e.target.closest('[data-billing-row]');
   if(row) openBilling(row.dataset.billingRow);
 });
+function saveEngagementTarget(rawValue, sourceEl){
+  var v = num(rawValue);
+  if(v <= 0){
+    if(sourceEl) sourceEl.value = engagementTarget();
+    toast('Target must be a positive number');
+    return;
+  }
+  state.settings = state.settings || defaultSettings();
+  state.settings.engagementTarget = v;
+  persistSettings();
+  render();
+  toast('Monthly engagement target set to ' + fmt(v));
+}
+document.getElementById('engagementTargetInput').addEventListener('change', function(e){
+  saveEngagementTarget(e.target.value, e.target);
+});
 document.getElementById('btnAddExpenseType').addEventListener('click', addExpenseType);
 document.getElementById('expenseTypeInput').addEventListener('keydown', function(e){
   if(e.key !== 'Enter') return;
@@ -4450,6 +4546,13 @@ document.getElementById('dOverview').addEventListener('change', function(e){
   if(e.target.id !== 'dDonutMetric') return;
   state.dDonutMetric = e.target.value;
   renderDashboardOverview();
+});
+document.getElementById('dEngagement').addEventListener('change', function(e){
+  if(e.target.id !== 'engTargetQuickInput') return;
+  saveEngagementTarget(e.target.value, e.target);
+});
+document.getElementById('dEngagement').addEventListener('click', function(e){
+  if(e.target.id === 'engTargetQuickInput') e.stopPropagation();
 });
 document.getElementById('btnImportSocial').addEventListener('click', pickSocialImportFile);
 document.getElementById('fileSocialImport').addEventListener('change', function(e){
