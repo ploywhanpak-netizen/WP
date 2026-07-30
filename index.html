@@ -3038,7 +3038,7 @@ function renderEvents(){
   if(state.ef.month === 'all'){
     /* ---- year overview: list of events ---- */
     breakTitle.textContent = 'All events - ' + year;
-    head.innerHTML = '<th>Event</th><th>Location</th><th>Dates</th><th class="num">Days</th><th class="num">Total Sales</th><th></th>';
+    head.innerHTML = '<th>Event</th><th>Location</th><th>Dates</th><th class="num">Days</th><th class="num">Total Sales</th><th class="num">Avg / Day</th><th></th>';
     var rows = (state.events || []).filter(function(ev){
       var overlapsYear = (ev.sales || []).some(function(d){ var p = dateParts(d.date); return p && p.y === year; });
       if(overlapsYear) return true;
@@ -3057,6 +3057,8 @@ function renderEvents(){
     body.innerHTML = rows.map(function(ev){
       var total = (ev.sales || []).reduce(function(sum,d){ return sum + num(d.amount); }, 0);
       var days = (ev.sales || []).filter(function(d){ return d.date; }).length;
+      var filledDays = (ev.sales || []).filter(function(d){ return d.date && num(d.amount) > 0; }).length;
+      var avgPerDay = filledDays ? total / filledDays : 0;
       var dates = ev.startDate ? (dateLabel(ev.startDate) + (ev.endDate && ev.endDate !== ev.startDate ? ' - ' + dateLabel(ev.endDate) : '')) : '-';
       return '<tr>' +
         '<td class="name" data-label="Event">' + esc(ev.name || '-') + '</td>' +
@@ -3064,6 +3066,7 @@ function renderEvents(){
         '<td class="date" data-label="Dates">' + dates + '</td>' +
         '<td class="num" data-label="Days">' + days + '</td>' +
         '<td class="num" data-label="Total Sales">' + money(total) + '</td>' +
+        '<td class="num" data-label="Avg / Day">' + (filledDays ? money(avgPerDay) : '-') + '</td>' +
         '<td><div class="row-actions">' +
           '<button class="icon-btn" type="button" data-viewevent="' + ev.id + '">View</button>' +
           '<button class="icon-btn" type="button" data-editevent="' + ev.id + '">Edit</button>' +
@@ -3072,8 +3075,11 @@ function renderEvents(){
       '</tr>';
     }).join('');
     var grand = rows.reduce(function(sum,ev){ return sum + (ev.sales || []).reduce(function(s2,d){ return s2 + num(d.amount); }, 0); }, 0);
+    var grandFilledDays = rows.reduce(function(sum,ev){ return sum + (ev.sales || []).filter(function(d){ return d.date && num(d.amount) > 0; }).length; }, 0);
+    var grandAvg = grandFilledDays ? grand / grandFilledDays : 0;
     foot.innerHTML = '<tr><td colspan="4">Total - ' + rows.length + ' event' + (rows.length === 1 ? '' : 's') + '</td>' +
-      '<td class="num" data-label="Total Sales">' + money(grand) + '</td><td></td></tr>';
+      '<td class="num" data-label="Total Sales">' + money(grand) + '</td>' +
+      '<td class="num" data-label="Avg / Day">' + (grandFilledDays ? money(grandAvg) : '-') + '</td><td></td></tr>';
   } else {
     /* ---- month drill-down: daily sales ---- */
     var monthName = MONTHS[+state.ef.month - 1];
