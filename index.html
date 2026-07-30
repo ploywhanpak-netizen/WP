@@ -919,7 +919,7 @@ body.gated .gate{display:flex}
     <section class="view" id="view-database">
       <header class="topbar">
         <h2>ฐานข้อมูล</h2>
-        <p class="sub">Archive of signed (เซ็นแล้ว) project requests. View only.</p>
+        <p class="sub">Archive of signed (เซ็นแล้ว) project requests. แก้ไข or ยกเลิก to move a request back to Projects Requests.</p>
         <div class="filters">
           <div class="field">
             <label for="dbSearch">Search</label>
@@ -2775,7 +2775,7 @@ function renderDatabase(){
   document.getElementById('dbSearch').value = state.bf.q || '';
   document.getElementById('dbHead').innerHTML = fields.map(function(f){
     return '<th data-sort="' + esc(f.key) + '"' + (f.money ? ' class="num"' : '') + '>' + esc(f.label) + '</th>';
-  }).join('');
+  }).join('') + '<th class="actions">Actions</th>';
   markSort(document.getElementById('dbTable'), state.sort.database);
   var totalApproved = (state.billing || []).filter(function(r){ return String(r.signature || '').trim() === 'เซ็นแล้ว'; }).length;
   document.getElementById('dbCount').textContent = rows.length + ' shown of ' + totalApproved + ' total';
@@ -2799,13 +2799,24 @@ function renderDatabase(){
       }
       var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
       return '<td' + (f.money ? ' class="num"' : '') + '>' + v + '</td>';
-    }).join('') + '</tr>';
+    }).join('') + '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">แก้ไข</button> <button class="icon-btn" type="button" data-billing-cancel="' + esc(r.id) + '">ยกเลิก</button></td></tr>';
   }).join('');
   document.getElementById('dbFoot').innerHTML = '<tr>' + fields.map(function(f){
     if(f.key === 'prNo') return '<td>Total</td>';
     if(f.key === 'amount') return '<td class="num">' + money(total) + '</td>';
     return '<td></td>';
-  }).join('') + '</tr>';
+  }).join('') + '<td></td></tr>';
+}
+function cancelBillingSignature(id){
+  var row = (state.billing || []).find(function(r){ return r.id === id; });
+  if(!row) return;
+  if(!confirm('ยกเลิกสถานะเซ็นแล้ว และย้ายกลับไปหน้า Projects Requests?')) return;
+  row.signature = 'รออนุมัติ';
+  persistBillingLocal();
+  saveBillingOne(row);
+  renderBilling();
+  renderDatabase();
+  toast('ย้ายกลับไปหน้า Projects Requests แล้ว');
 }
 function openBilling(id){
   state.editingBillingId = id || null;
@@ -4133,6 +4144,17 @@ document.getElementById('dbTable').addEventListener('click', function(e){
   if(th){
     setSort('database', th.dataset.sort);
     renderDatabase();
+    return;
+  }
+  var edit = e.target.closest('[data-billing-edit]');
+  if(edit){
+    openBilling(edit.dataset.billingEdit);
+    return;
+  }
+  var cancel = e.target.closest('[data-billing-cancel]');
+  if(cancel){
+    cancelBillingSignature(cancel.dataset.billingCancel);
+    return;
   }
 });
 function saveEngagementTarget(rawValue, sourceEl){
