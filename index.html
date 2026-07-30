@@ -2758,7 +2758,9 @@ function renderBilling(){
   document.getElementById('bBody').innerHTML = rows.map(function(r){
     return '<tr data-billing-row="' + esc(r.id) + '">' + fields.map(function(f){
       if(f.key === 'signature'){
-        return '<td><span class="status-badge ' + billingStatusClass(r.signature) + '">' + esc(r.signature || 'รออนุมัติ') + '</span></td>';
+        return '<td><select class="status-badge status-badge-select ' + billingStatusClass(r.signature) + '" data-billing-status="' + esc(r.id) + '">' +
+          fieldOptions('signature', r.signature || 'รออนุมัติ', ['รออนุมัติ', 'เซ็นแล้ว', 'ไม่อนุมัติ']).replace('<option value="">-- เลือกข้อมูล --</option>', '') +
+          '</select></td>';
       }
       var v = f.money ? money(num(r[f.key])) : esc(r[f.key] || '-');
       return '<td' + (f.money ? ' class="num"' : '') + '>' + v + '</td>';
@@ -2811,16 +2813,15 @@ function renderDatabase(){
     return '<td></td>';
   }).join('') + '<td></td></tr>';
 }
-function cancelBillingSignature(id){
+function updateBillingStatus(id, value){
   var row = (state.billing || []).find(function(r){ return r.id === id; });
   if(!row) return;
-  if(!confirm('ยกเลิกสถานะเซ็นแล้ว และย้ายกลับไปหน้า Projects Requests?')) return;
-  row.signature = 'รออนุมัติ';
+  row.signature = value;
   persistBillingLocal();
   saveBillingOne(row);
   renderBilling();
   renderDatabase();
-  toast('ย้ายกลับไปหน้า Projects Requests แล้ว');
+  toast(value === 'เซ็นแล้ว' ? 'บันทึกสถานะแล้ว' : 'ย้ายกลับไปหน้า Projects Requests แล้ว');
 }
 function openBilling(id){
   state.editingBillingId = id || null;
@@ -4139,6 +4140,10 @@ document.getElementById('bTable').addEventListener('click', function(e){
   var row = e.target.closest('[data-billing-row]');
   if(row) openBilling(row.dataset.billingRow);
 });
+document.getElementById('bTable').addEventListener('change', function(e){
+  var sel = e.target.closest('[data-billing-status]');
+  if(sel) updateBillingStatus(sel.dataset.billingStatus, sel.value);
+});
 document.getElementById('dbSearch').addEventListener('input', function(e){
   state.bf.q = e.target.value;
   renderDatabase();
@@ -4155,11 +4160,10 @@ document.getElementById('dbTable').addEventListener('click', function(e){
     openBilling(edit.dataset.billingEdit);
     return;
   }
-  var cancel = e.target.closest('[data-billing-cancel]');
-  if(cancel){
-    cancelBillingSignature(cancel.dataset.billingCancel);
-    return;
-  }
+});
+document.getElementById('dbTable').addEventListener('change', function(e){
+  var sel = e.target.closest('[data-billing-status]');
+  if(sel) updateBillingStatus(sel.dataset.billingStatus, sel.value);
 });
 function saveEngagementTarget(rawValue, sourceEl){
   var v = num(rawValue);
