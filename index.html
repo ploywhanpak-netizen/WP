@@ -2144,7 +2144,7 @@ function renderAnalytics(){
   empty.innerHTML = '';
 
   body.innerHTML = rows.map(function(r){
-    var c = cpr(r);
+    var c = cpr(r), e = engagement(r), n = (r.links || []).length;
     return '<tr>' +
       '<td class="name" data-label="Channel">' + esc(r.channel || '-') + '</td>' +
       '<td class="sub" data-label="Review Location">' + esc(r.place || '-') + '</td>' +
@@ -2154,7 +2154,8 @@ function renderAnalytics(){
       '<td class="num" data-label="Barter">' + money(num(r.barter)) + '</td>' +
       '<td class="num" data-label="Ads">' + money(num(r.ads)) + '</td>' +
       '<td class="num" data-label="Total Cost">' + money(cost(r)) + '</td>' +
-      '<td class="num" data-label="Total Engagement">' + fmt(engagement(r)) + '</td>' +
+      '<td class="num" data-label="Total Engagement"><button class="eng-btn" type="button" data-links="' + r.id + '">' + fmt(e) +
+        '<span class="links">' + (n ? n + ' link' + (n === 1 ? '' : 's') : 'add links') + '</span></button></td>' +
       '<td class="num" data-label="CPR"><span class="chip ' + grade(c, s.cpr) + '">' + cprText(c) + '</span></td>' +
     '</tr>';
   }).join('');
@@ -4235,6 +4236,8 @@ document.getElementById('rTable').addEventListener('click', function(e){
   if(tr) tr.classList.toggle('open');
 });
 document.querySelector('#view-analytics .card:not(.chart-card) table').addEventListener('click', function(e){
+  var linkBtn = e.target.closest('[data-links]');
+  if(linkBtn){ openLinks(linkBtn.dataset.links); return; }
   if(e.target.closest('button,input,select,textarea,a')) return;
   var tr = e.target.closest('tbody tr');
   if(tr) tr.classList.toggle('open');
