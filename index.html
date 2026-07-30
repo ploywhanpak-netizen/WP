@@ -139,6 +139,7 @@ button,input,select,textarea{font:inherit;color:inherit}
   cursor:pointer;font-size:13px;font-weight:500;
 }
 .btn:hover{border-color:#A9B7C4}
+.btn:disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
 .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .btn.primary:hover{background:#1D3345}
 .btn.ghost{background:none}
@@ -985,6 +986,7 @@ body.gated .gate{display:flex}
           <div class="field">
             <label for="sfPlatform">Platform</label>
             <select id="sfPlatform">
+              <option value="all">All Platforms (combined)</option>
               <option value="facebook">Facebook</option>
               <option value="instagram">Instagram</option>
             </select>
@@ -1726,7 +1728,7 @@ var state = {
   draftDays: [],
   detailEventId: null,
   social: { facebook:{}, instagram:{} },
-  sf: { platform:'facebook', year:String(now.getFullYear()), month:String(now.getMonth()+1) }
+  sf: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) }
 };
 
 function placeKey(v){ return String(v == null ? '' : v).trim(); }
@@ -1909,7 +1911,15 @@ function buildFilters(){
   fillSelect(document.getElementById('sfYear'), ys, state.sf.year);
   fillSelect(document.getElementById('sfMonth'), MONTHS.map(function(m,i){ return [i+1, m]; }), state.sf.month);
   document.getElementById('sfPlatform').value = state.sf.platform;
-  document.getElementById('sfImportTarget').textContent = state.sf.platform === 'instagram' ? 'Instagram' : 'Facebook';
+  updateSocialImportTarget();
+}
+function updateSocialImportTarget(){
+  var isAll = state.sf.platform === 'all';
+  var target = document.getElementById('sfImportTarget');
+  var btn = document.getElementById('btnImportSocial');
+  target.textContent = isAll ? 'pick a platform first' : platformLabel(state.sf.platform);
+  btn.disabled = isAll;
+  btn.title = isAll ? 'Switch to Facebook or Instagram to import a file' : '';
 }
 
 /* ---------------- stats ---------------- */
@@ -3408,15 +3418,41 @@ var SOCIAL_METRICS = [
   { key:'visits', label:'Visits' },
   { key:'follows', label:'Follows' }
 ];
+var PLATFORM_LABELS = { facebook:'Facebook', instagram:'Instagram', tiktok:'TikTok' };
+function platformLabel(pl){ return PLATFORM_LABELS[pl] || (pl.charAt(0).toUpperCase() + pl.slice(1)); }
+function socialPlatformKeys(){
+  var known = ['facebook','instagram'];
+  Object.keys(state.social || {}).forEach(function(pl){ if(known.indexOf(pl) === -1) known.push(pl); });
+  return known;
+}
 function socialDaysInMonth(platform, metricKey, year, month){
-  var bucket = ((state.social || {})[platform] || {})[metricKey] || {};
   var dim = new Date(year, month, 0).getDate();
+  var platforms = platform === 'all' ? socialPlatformKeys() : [platform];
   var out = [];
   for(var d=1; d<=dim; d++){
     var iso = year + '-' + pad(month) + '-' + pad(d);
-    out.push({ date:iso, day:d, value: bucket.hasOwnProperty(iso) ? num(bucket[iso]) : null });
+    var any = false, sum = 0;
+    platforms.forEach(function(pl){
+      var bucket = ((state.social || {})[pl] || {})[metricKey] || {};
+      if(bucket.hasOwnProperty(iso)){ any = true; sum += num(bucket[iso]); }
+    });
+    out.push({ date:iso, day:d, value: any ? sum : null });
   }
   return out;
+}
+function socialPlatformTotals(metricKey, year, month){
+  var dim = new Date(year, month, 0).getDate();
+  var totals = {};
+  socialPlatformKeys().forEach(function(pl){
+    var bucket = ((state.social || {})[pl] || {})[metricKey] || {};
+    var t = 0;
+    for(var d=1; d<=dim; d++){
+      var iso = year + '-' + pad(month) + '-' + pad(d);
+      if(bucket.hasOwnProperty(iso)) t += num(bucket[iso]);
+    }
+    totals[pl] = t;
+  });
+  return totals;
 }
 function renderMetricCard(metric){
   var year = +state.sf.year, month = +state.sf.month;
@@ -3441,10 +3477,19 @@ function renderMetricCard(metric){
   }).join('');
   var xaxis = days.map(function(d){ return '<div>' + (d.day % 5 === 1 || d.day === days.length ? d.day : '') + '</div>'; }).join('');
 
+  var breakdown = '';
+  if(state.sf.platform === 'all'){
+    var totals = socialPlatformTotals(metric.key, year, month);
+    breakdown = '<div class="mn">' + socialPlatformKeys().map(function(pl){
+      return platformLabel(pl) + ' ' + engShort(totals[pl] || 0);
+    }).join(' · ') + '</div>';
+  }
+
   return '<div class="metric-card">' +
     '<div class="mk">' + esc(metric.label) + '</div>' +
     '<div class="mv">' + engShort(total) + '</div>' +
     '<div class="mn">' + withData.length + ' of ' + days.length + ' days imported</div>' +
+    breakdown +
     '<div class="plot">' + lines + bars + '</div>' +
     '<div class="xaxis">' + xaxis + '</div>' +
   '</div>';
@@ -4036,7 +4081,7 @@ document.getElementById('eYear').addEventListener('change', function(e){
 
 document.getElementById('sfPlatform').addEventListener('change', function(e){
   state.sf.platform = e.target.value;
-  document.getElementById('sfImportTarget').textContent = state.sf.platform === 'instagram' ? 'Instagram' : 'Facebook';
+  updateSocialImportTarget();
   renderSocial();
 });
 document.getElementById('sfYear').addEventListener('change', function(e){ state.sf.year = e.target.value; renderSocial(); });
