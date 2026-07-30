@@ -425,6 +425,24 @@ legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform
 .rank-date{flex:1;font-size:13.5px;color:var(--text)}
 .rank-amt{font-family:var(--mono);font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums}
 
+/* dashboard: summary banner + stat strip + monthly charts + table */
+.dash-banner{
+  background:var(--focus);color:#fff;border-radius:var(--radius);padding:20px 24px;margin-bottom:16px;
+  font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-.01em;
+}
+.dash-stat-strip{
+  border:1.5px solid var(--line);border-radius:16px;padding:18px 26px;margin-bottom:20px;
+  display:flex;flex-wrap:wrap;gap:26px;background:var(--card);
+}
+.dash-stat{display:flex;flex-direction:column;gap:4px;min-width:100px}
+.dash-stat-label{font-size:13px;color:var(--muted)}
+.dash-stat-value{font-family:var(--display);font-size:26px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.dash-monthly-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+.dash-month-card .plot{height:150px}
+.dash-legend-swatch{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:-1px}
+@media (max-width:1200px){ .dash-monthly-grid{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:700px){ .dash-monthly-grid{grid-template-columns:1fr} }
+
 /* dashboard: platform mix donut */
 .donut-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
 .donut-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
@@ -1095,11 +1113,11 @@ body.gated .gate{display:flex}
         </div>
       </header>
       <div class="content">
-        <div class="grid2" id="dTopCards">
-          <div id="dOverview"></div>
-          <div id="dEngagement"></div>
-        </div>
-        <div class="grid2" id="dGrid"></div>
+        <div id="dBanner"></div>
+        <div id="dStatStrip"></div>
+        <div id="dMonthlyCharts"></div>
+        <div id="dMonthlyTable"></div>
+        <div id="dEngagement"></div>
       </div>
     </section>
 
@@ -3863,43 +3881,77 @@ function donutSVG(segments, size){
     '<text x="' + cx + '" y="' + (cy + 14) + '" text-anchor="middle" class="donut-sub">total</text>' +
   '</svg>';
 }
-function renderDashboardOverview(){
-  var year = +state.df.year, month = +state.df.month;
-  var metricKey = state.dDonutMetric || 'views';
-  var metricMeta = SOCIAL_METRICS.find(function(m){ return m.key === metricKey; }) || SOCIAL_METRICS[0];
-  var segs = socialPlatformKeys().map(function(pl){
-    return { platform:pl, total: monthTotal(pl, metricKey, year, month).total, color: platformColor(pl) };
-  });
-  var grand = segs.reduce(function(s,x){ return s + x.total; }, 0);
+function yearlyMonthlyTotals(platform, metricKey, year){
+  var out = [];
+  for(var m=1;m<=12;m++) out.push({ month:m, total: monthTotal(platform, metricKey, year, m).total, count: monthTotal(platform, metricKey, year, m).count });
+  return out;
+}
+function renderDashboardSummary(){
+  var year = +state.df.year;
+  var platform = state.df.platform;
+  var platLabel = platform === 'all' ? 'All Platforms' : platformLabel(platform);
 
-  var allActive = state.df.platform === 'all';
-  var legend = '<button class="donut-legend-item' + (allActive ? ' active' : '') + '" type="button" data-donutfilter="all">' +
-    '<span class="dot" style="background:var(--ink)"></span><span class="dl-name">All Platforms</span>' +
-    '<span class="dl-pct">100%</span><span class="dl-val">' + engShort(grand) + '</span></button>' +
-    segs.map(function(s){
-      var pct = grand > 0 ? Math.round(s.total / grand * 100) : 0;
-      var active = state.df.platform === s.platform;
-      return '<button class="donut-legend-item' + (active ? ' active' : '') + '" type="button" data-donutfilter="' + s.platform + '">' +
-        '<span class="dot" style="background:' + s.color + '"></span>' +
-        '<span class="dl-name">' + esc(platformLabel(s.platform)) + '</span>' +
-        '<span class="dl-pct">' + pct + '%</span>' +
-        '<span class="dl-val">' + engShort(s.total) + '</span>' +
+  document.getElementById('dBanner').innerHTML =
+    '<div class="dash-banner">' + esc(platLabel) + ' Social Summary ' + year + '</div>';
+
+  var yearTotals = SOCIAL_METRICS.map(function(m){
+    return { metric:m, total: yearlyMonthlyTotals(platform, m.key, year).reduce(function(s,x){ return s + x.total; }, 0) };
+  });
+  document.getElementById('dStatStrip').innerHTML =
+    '<div class="dash-stat-strip">' + yearTotals.map(function(x){
+      return '<div class="dash-stat"><span class="dash-stat-label">' + esc(x.metric.label) + '</span><span class="dash-stat-value">' + fmt(x.total) + '</span></div>';
+    }).join('') + '</div>';
+
+  var chartsHtml = SOCIAL_METRICS.map(function(metric){
+    var monthly = yearlyMonthlyTotals(platform, metric.key, year);
+    var maxV = Math.max.apply(null, monthly.map(function(x){ return x.total; }).concat([1]));
+    var top = niceTop(maxV);
+    var lines = '';
+    for(var i=0;i<=3;i++){
+      var v = top * i / 3;
+      lines += '<div class="gridline" style="bottom:' + (i * 33.33).toFixed(1) + '%"><span>' + (i === 0 ? '0' : engShort(v)) + '</span></div>';
+    }
+    var bars = monthly.map(function(x){
+      var h = top ? (x.total / top) * 100 : 0;
+      var title = MONTHS[x.month-1] + ' ' + year + ' - ' + fmt(x.total);
+      return '<button class="bar-col' + (x.total ? ' hit' : ' zero') + '" type="button" title="' + esc(title) + '" aria-label="' + esc(title) + '">' +
+        (x.total ? '<span class="val" style="bottom:calc(' + h.toFixed(1) + '% + 5px)">' + engShort(x.total) + '</span>' : '') +
+        '<span class="bar" style="height:' + Math.max(h, x.total ? 2 : 0.6).toFixed(1) + '%;background:' + metric.accent + '"></span>' +
       '</button>';
     }).join('');
+    var xaxis = monthly.map(function(x){ return '<div>' + MON[x.month-1] + '</div>'; }).join('');
+    return '<div class="card dash-month-card">' +
+      '<div class="card-head" style="border:0;padding:14px 14px 2px">' +
+        '<span class="dash-legend-swatch" style="background:' + metric.accent + '"></span>' +
+        '<h3 style="font-family:var(--display);font-size:13.5px;margin:0;font-weight:600">' + esc(metric.label) + '</h3>' +
+      '</div>' +
+      '<div class="chart" style="padding:6px 12px 10px">' +
+        '<div class="plot" style="padding-left:40px">' + lines + bars + '</div>' +
+        '<div class="xaxis" style="padding-left:40px">' + xaxis + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('dMonthlyCharts').innerHTML = '<div class="dash-monthly-grid">' + chartsHtml + '</div>';
 
-  document.getElementById('dOverview').innerHTML =
-    '<div class="donut-card">' +
-      '<div class="donut-card-head">' +
-        '<h3>Platform mix</h3>' +
-        '<select id="dDonutMetric">' + SOCIAL_METRICS.map(function(m){
-          return '<option value="' + m.key + '"' + (m.key === metricKey ? ' selected' : '') + '>' + esc(m.label) + '</option>';
-        }).join('') + '</select>' +
-      '</div>' +
-      '<div class="donut-body">' +
-        '<button class="donut-reset" type="button" data-donutfilter="all" title="Show all platforms" aria-label="Show all platforms">' + donutSVG(segs) + '</button>' +
-        '<div class="donut-legend">' + legend + '</div>' +
-      '</div>' +
-      '<p class="chart-note" style="padding:10px 0 0">' + esc(metricMeta.label) + ' - ' + esc(MONTHS[month-1]) + ' ' + year + '. Click a platform to filter the cards below.</p>' +
+  var activeMonths = [];
+  for(var mo=1; mo<=12; mo++){
+    var anyData = SOCIAL_METRICS.some(function(metric){ return monthTotal(platform, metric.key, year, mo).count > 0; });
+    if(anyData) activeMonths.push(mo);
+  }
+  var tableRows = activeMonths.map(function(mo, i){
+    var cells = SOCIAL_METRICS.map(function(metric){
+      return '<td class="num">' + fmt(monthTotal(platform, metric.key, year, mo).total) + '</td>';
+    }).join('');
+    return '<tr><td class="sub">' + (i + 1) + '.</td><td class="name">' + esc(MONTHS[mo-1]) + ' ' + year + '</td>' + cells + '</tr>';
+  }).join('');
+  document.getElementById('dMonthlyTable').innerHTML =
+    '<div class="card" style="margin-bottom:20px">' +
+      '<div class="card-head"><h3>Monthly Breakdown</h3></div>' +
+      '<div class="table-wrap"><table><thead><tr><th></th><th>Month</th>' +
+        SOCIAL_METRICS.map(function(m){ return '<th class="num">' + esc(m.label) + '</th>'; }).join('') +
+      '</tr></thead><tbody>' +
+      (tableRows || '<tr><td colspan="' + (SOCIAL_METRICS.length + 2) + '" class="sub">No data imported for ' + year + ' yet.</td></tr>') +
+      '</tbody></table></div>' +
     '</div>';
 }
 function renderEngagementTarget(){
@@ -3957,9 +4009,8 @@ function renderEngagementTarget(){
     '</div>';
 }
 function renderSocialDashboard(){
-  renderDashboardOverview();
+  renderDashboardSummary();
   renderEngagementTarget();
-  document.getElementById('dGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.df); }).join('');
 }
 
 function render(){
@@ -4579,26 +4630,6 @@ document.getElementById('sTable').addEventListener('click', function(e){
 document.getElementById('dfPlatform').addEventListener('change', function(e){ state.df.platform = e.target.value; renderSocialDashboard(); });
 document.getElementById('dfYear').addEventListener('change', function(e){ state.df.year = e.target.value; renderSocialDashboard(); });
 document.getElementById('dfMonth').addEventListener('change', function(e){ state.df.month = e.target.value; renderSocialDashboard(); });
-document.getElementById('dGrid').addEventListener('click', function(e){
-  var btn = e.target.closest('button[data-compare]');
-  if(!btn) return;
-  var key = btn.dataset.compare;
-  state.dashCompare[key] = !state.dashCompare[key];
-  renderSocialDashboard();
-});
-document.getElementById('dOverview').addEventListener('click', function(e){
-  var btn = e.target.closest('button[data-donutfilter]');
-  if(!btn) return;
-  state.df.platform = btn.dataset.donutfilter;
-  var sel = document.getElementById('dfPlatform');
-  if(sel) sel.value = state.df.platform;
-  renderSocialDashboard();
-});
-document.getElementById('dOverview').addEventListener('change', function(e){
-  if(e.target.id !== 'dDonutMetric') return;
-  state.dDonutMetric = e.target.value;
-  renderDashboardOverview();
-});
 document.getElementById('dEngagement').addEventListener('change', function(e){
   if(e.target.id !== 'engTargetQuickInput') return;
   saveEngagementTarget(e.target.value, e.target);
