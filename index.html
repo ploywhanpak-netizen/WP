@@ -1183,6 +1183,8 @@ var FIREBASE_TARGET_COLLECTION = 'targetBudget';
 var FIREBASE_TARGET_DOC = 'main';
 var FIREBASE_BILLING_COLLECTION = 'approvalRequests';
 var FIREBASE_EVENTS_COLLECTION = 'boothEvents';
+var FIREBASE_SETTINGS_COLLECTION = 'settings';
+var FIREBASE_SETTINGS_DOC = 'main';
 /* Monthly engagement KPI is user-editable now - see engagementTarget() and state.settings.engagementTarget */
 var SIGN_IN = 'none';              /* no login screen; Firestore rules control who can read/write */
 var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
@@ -1321,6 +1323,13 @@ function loadSettings(){
 }
 function persistSettings(){
   try {
+    if(live()){
+      fb.fs.setDoc(fb.fs.doc(fb.db, FIREBASE_SETTINGS_COLLECTION, FIREBASE_SETTINGS_DOC), {
+        settings: state.settings || defaultSettings(),
+        updatedAt: Date.now(),
+        updatedBy: whoami()
+      }).catch(syncFail);
+    }
     if(canStore) return window.storage.set(SETTINGS_KEY, JSON.stringify(state.settings || defaultSettings())).catch(function(){});
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings || defaultSettings()));
   } catch(e){}
@@ -1501,6 +1510,22 @@ function targetHasRows(){
     return /^\d+$/.test(k) && Object.keys(state.targets[k] || {}).some(function(x){ return x.charAt(0) !== '_'; });
   });
 }
+function subscribeSettings(){
+  if(fb.unsubSettings) return;
+  var ref = fb.fs.doc(fb.db, FIREBASE_SETTINGS_COLLECTION, FIREBASE_SETTINGS_DOC);
+  fb.unsubSettings = fb.fs.onSnapshot(ref, function(snap){
+    if(snap.exists()){
+      var data = snap.data() || {};
+      state.settings = normalizeSettings(data.settings);
+      if(canStore) window.storage.set(SETTINGS_KEY, JSON.stringify(state.settings)).catch(function(){});
+      render();
+    } else {
+      persistSettings();
+    }
+  }, function(err){
+    setStoreState(false, 'Settings sync error - ' + (err.code || 'check your Firestore rules'));
+  });
+}
 function subscribeTargets(){
   if(fb.unsubTargets) return;
   var ref = fb.fs.doc(fb.db, FIREBASE_TARGET_COLLECTION, FIREBASE_TARGET_DOC);
@@ -1544,13 +1569,14 @@ function connectTeam(){
     import(SDK + 'firebase-firestore.js')
   ]).then(function(m){
     var app = m[0].initializeApp(FIREBASE_CONFIG);
-    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null, unsubEvents:null };
+    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null, unsubEvents:null, unsubSettings:null };
     renderAuthBox();
     updateGate();
     subscribe();
     subscribeTargets();
     subscribeBilling();
     subscribeEvents();
+    subscribeSettings();
   }).catch(function(e){
     fb = null;
     document.body.classList.remove('gated');
@@ -1794,6 +1820,10 @@ function years(){
   Object.keys(state.targets || {}).forEach(function(y){ if(/^\d+$/.test(y)) set[y] = 1; });
   (state.events || []).forEach(function(ev){
     (ev.sales || []).forEach(function(d){ var p = dateParts(d.date); if(p) set[p.y] = 1; });
+  });
+  (state.billing || []).forEach(function(r){
+    var d = parseProjectDurationMonth(r.projectDuration);
+    if(d) set[d.year] = 1;
   });
   set[now.getFullYear()] = 1;
   return Object.keys(set).map(Number).sort(function(a,b){ return b-a; });
@@ -2287,75 +2317,92 @@ function sortBudgetValue(r, key){
   if(key === 'left') return num(r.left);
   return '';
 }
-function monthMeta(label, i){
-  var parts = String(label || '').trim().split(/\s+/);
-  var m = MON.findIndex(function(x){ return x.toLowerCase() === String(parts[0] || '').slice(0,3).toLowerCase(); }) + 1;
-  var y = num(parts[1]) || num(state.tf.year);
-  return { label: label || (MON[i] + ' ' + state.tf.year), month:m || (i + 1), year:y };
+/* Budget is sourced entirely from Project Requests (billing) - no Target / Influencer Records data. */
+function parseProjectDurationMonth(str){
+  str = String(str || '');
+  if(!str.trim()) return null;
+  var monIdx = -1;
+  for(var i=0;i<TH_MONTH.length;i++){
+    if(str.indexOf(TH_MONTH[i]) !== -1){ monIdx = i; break; }
+  }
+  if(monIdx === -1){
+    var lower = str.toLowerCase();
+    for(var j=0;j<MON.length;j++){
+      if(lower.indexOf(MON[j].toLowerCase()) !== -1){ monIdx = j; break; }
+    }
+  }
+  if(monIdx === -1){
+    var lower2 = str.toLowerCase();
+    for(var k=0;k<MONTHS.length;k++){
+      if(lower2.indexOf(MONTHS[k].toLowerCase()) !== -1){ monIdx = k; break; }
+    }
+  }
+  if(monIdx === -1) return null;
+  var ym = str.match(/\b(\d{4})\b/);
+  if(!ym) return null;
+  var year = +ym[1];
+  if(year > 2400) year -= 543; /* Buddhist era -> Gregorian */
+  return { month: monIdx + 1, year: year };
 }
-function budgetPercent(){
-  var rows = targetYear();
-  if(rows._budgetPct == null || rows._budgetPct === '') rows._budgetPct = 1;
-  return num(rows._budgetPct);
-}
-function budgetRecords(meta){
-  return state.records.filter(function(r){
-    var p = dateParts(r.publishDate || r.reviewDate);
-    return p && p.y === meta.year && p.m === meta.month && cost(r) > 0;
-  });
-}
+function billingApproved(r){ return String(r && r.signature || '').trim() === 'อนุมัติแล้ว'; }
 function budgetDetail(items){
-  if(!items.length) return '<div class="budget-empty">No expense records in this month.</div>';
+  if(!items.length) return '<div class="budget-empty">No Project Requests dated in this month.</div>';
   return '<div class="detail-list">' + items.map(function(r){
+    var approved = billingApproved(r);
     return '<div class="budget-item">' +
-      '<strong>' + esc(r.channel || '-') + '</strong>' +
-      '<span>' + esc(r.place || '-') + '</span>' +
-      '<span>' + esc(r.publishDate || r.reviewDate || '-') + '</span>' +
-      '<span>Ratecard ' + money(num(r.ratecard)) + '</span>' +
-      '<span>Ads ' + money(num(r.ads)) + '</span>' +
+      '<strong>' + esc(r.prNo || '-') + '</strong>' +
+      '<span>' + esc(r.supplier || '-') + '</span>' +
+      '<span>' + esc(r.projectDuration || '-') + '</span>' +
+      '<span>Amount ' + money(num(r.amount)) + '</span>' +
+      '<span class="chip ' + (approved ? 'good' : 'mid') + '">' + esc(r.signature || 'รออนุมัติ') + '</span>' +
     '</div>';
   }).join('') + '</div>';
 }
-function renderBudget(rows, monthLabels){
-  var summary = targetSummary(rows);
-  var pct = budgetPercent();
-  var budget = summary.target * pct / 100;
-  var used = 0;
-  var metas = monthLabels.map(monthMeta);
-  var monthBudget = metas.length ? budget / metas.length : 0;
-  var monthRows = metas.map(function(meta){
-    var items = budgetRecords(meta);
-    var spent = items.reduce(function(s,r){ return s + cost(r); }, 0);
-    used += spent;
-    return { meta:meta, items:items, budget:monthBudget, spent:spent, left:Math.max(0, monthBudget - spent) };
-  });
-  monthRows = sortRows(monthRows, state.sort.budget, sortBudgetValue);
+function renderBudget(){
+  var year = +state.tf.year;
+  var dated = (state.billing || []).map(function(r){ return { r:r, d:parseProjectDurationMonth(r.projectDuration) }; });
+  var rows = dated.filter(function(x){ return x.d && x.d.year === year; }).map(function(x){ return x.r; });
+  var excluded = dated.filter(function(x){ return !x.d; }).length;
+
+  var budget = rows.reduce(function(s,r){ return s + num(r.amount); }, 0);
+  var approvedRows = rows.filter(billingApproved);
+  var used = approvedRows.reduce(function(s,r){ return s + num(r.amount); }, 0);
   var left = Math.max(0, budget - used);
   var usedPct = budget ? Math.min(100, Math.round((used / budget) * 1000) / 10) : 0;
   var leftPct = budget ? Math.max(0, Math.round(((budget - used) / budget) * 1000) / 10) : 0;
   var usedPctText = usedPct.toFixed(1).replace(/\.0$/,'');
   var leftPctText = leftPct.toFixed(1).replace(/\.0$/,'');
+
+  var monthRows = MON.map(function(m, i){
+    var monthNum = i + 1;
+    var items = rows.filter(function(r){ var d = parseProjectDurationMonth(r.projectDuration); return d && d.month === monthNum; });
+    var mBudget = items.reduce(function(s,r){ return s + num(r.amount); }, 0);
+    var mUsed = items.filter(billingApproved).reduce(function(s,r){ return s + num(r.amount); }, 0);
+    return { meta:{ label: m + ' ' + year, month:monthNum, year:year }, items:items, budget:mBudget, spent:mUsed, left:Math.max(0, mBudget - mUsed) };
+  });
+  monthRows = sortRows(monthRows, state.sort.budget, sortBudgetValue);
+
   document.getElementById('tTitle').textContent = 'Budget';
-  document.getElementById('tSub').textContent = 'Budget is calculated from Annual Target. Enter the percentage you want to reserve.';
+  document.getElementById('tSub').textContent = 'Budget is calculated entirely from Project Requests - total PR amount vs approved (อนุมัติแล้ว) PR amount, grouped by month from Project Duration.';
   document.getElementById('tStats').innerHTML =
-    '<div class="stat accent-spend"><div class="k">Annual target</div><div class="v">' + money(summary.target) + '</div><div class="n">Budget base</div></div>' +
-    '<div class="stat"><div class="k">Budget</div><div class="v">' + money(budget) + '</div><div class="n">' + pct + '% from target</div></div>' +
-    '<div class="stat accent-eng"><div class="k">Used</div><div class="v">' + money(used) + '</div><div class="target-progress"><span style="width:' + usedPct + '%"></span></div><div class="n">Used ' + usedPctText + '% / ' + leftPctText + '% left</div></div>' +
-    '<div class="stat"><div class="k">Remaining</div><div class="v">' + money(left) + '</div><div class="n">Available budget</div></div>';
-  document.getElementById('tCardTitle').textContent = 'Part Marketing Budget';
-  document.getElementById('tCount').textContent = state.tf.year + ' - ' + pct + '% from target';
-  document.getElementById('tHead').innerHTML = '<tr><th data-sort="month">Month</th><th class="num" data-sort="budget">Budget / month</th><th class="num" data-sort="spent">Used this month</th><th class="num" data-sort="left">Available this month</th></tr>';
+    '<div class="stat accent-spend"><div class="k">Total PR (Budget)</div><div class="v">' + money(budget) + '</div><div class="n">' + rows.length + ' request' + (rows.length === 1 ? '' : 's') + ' in ' + year + '</div></div>' +
+    '<div class="stat accent-eng"><div class="k">Used (Approved)</div><div class="v">' + money(used) + '</div><div class="target-progress"><span style="width:' + usedPct + '%"></span></div><div class="n">Used ' + usedPctText + '% / ' + leftPctText + '% left</div></div>' +
+    '<div class="stat"><div class="k">Remaining</div><div class="v">' + money(left) + '</div><div class="n">Not yet approved</div></div>' +
+    '<div class="stat"><div class="k">Approved requests</div><div class="v">' + approvedRows.length + '</div><div class="n">of ' + rows.length + ' total</div></div>';
+  document.getElementById('tCardTitle').textContent = 'Budget by Month (from Project Requests)';
+  document.getElementById('tCount').textContent = String(year) + (excluded ? ' - ' + excluded + ' PR' + (excluded === 1 ? '' : 's') + ' skipped (no month found in Project Duration)' : '');
+  document.getElementById('tHead').innerHTML = '<tr><th data-sort="month">Month</th><th class="num" data-sort="budget">Total PR</th><th class="num" data-sort="spent">Approved (Used)</th><th class="num" data-sort="left">Remaining</th></tr>';
   markSort(document.querySelector('.target-table'), state.sort.budget);
-  document.getElementById('tEmpty').innerHTML = '';
-  document.getElementById('tBody').innerHTML = monthRows.map(function(r, i){
+  document.getElementById('tEmpty').innerHTML = rows.length ? '' : '<div class="empty"><h4>No Project Requests dated in ' + year + '</h4><p>Make sure Project Duration includes a month and year, e.g. "1 Jul 2026 - 31 Jul 2026".</p></div>';
+  document.getElementById('tBody').innerHTML = monthRows.map(function(r){
     var key = String(r.meta.year) + '-' + pad(r.meta.month);
     var open = !!state.budgetOpen[key];
     var pctUsed = r.budget ? Math.min(100, Math.round((r.spent / r.budget) * 1000) / 10) : 0;
     return '<tr>' +
       '<td class="budget-month' + (open ? ' open' : '') + '" data-budget-toggle="' + key + '">' + esc(r.meta.label) + '</td>' +
       '<td class="num money-target">' + money(r.budget) + '</td>' +
-      '<td class="num money-target">' + money(r.spent) + '<span class="channel-note">Used ' + pctUsed + '%</span></td>' +
-      '<td class="num money-used">' + money(r.left) + '<span class="channel-note">' + Math.max(0, 100 - pctUsed).toFixed(1).replace(/\.0$/,'') + '% left</span></td>' +
+      '<td class="num money-target">' + money(r.spent) + '<span class="channel-note">' + pctUsed + '% of PR</span></td>' +
+      '<td class="num money-used">' + money(r.left) + '<span class="channel-note">' + r.items.length + ' PR' + (r.items.length === 1 ? '' : 's') + '</span></td>' +
     '</tr>' + (open ? '<tr class="budget-detail"><td colspan="4">' + budgetDetail(r.items) + '</td></tr>' : '');
   }).join('');
   document.getElementById('tFoot').innerHTML = '<tr><td>Total</td><td class="num money-target">' + money(budget) + '</td><td class="num money-target">' + money(used) + '</td><td class="num money-used">' + money(left) + '</td></tr>';
@@ -2366,13 +2413,12 @@ function renderTargets(){
   var isBudget = state.view === 'budget';
   document.getElementById('targetBranchField').style.display = isBudget ? 'none' : '';
   document.getElementById('targetMonthField').style.display = isBudget ? 'none' : '';
-  document.getElementById('budgetPctField').style.display = isBudget ? '' : 'none';
+  document.getElementById('budgetPctField').style.display = 'none';
   document.getElementById('btnClearTargets').style.display = isBudget ? 'none' : '';
   document.getElementById('btnAddTargetChannel').style.display = isBudget ? 'none' : '';
   document.getElementById('btnAddTargetMonth').style.display = isBudget ? 'none' : '';
-  document.getElementById('budgetPct').value = budgetPercent();
   if(isBudget){
-    renderBudget(rows, monthLabels);
+    renderBudget();
     return;
   }
   document.getElementById('tTitle').textContent = state.view === 'budget' ? 'Budget' : 'Target';
@@ -3833,7 +3879,7 @@ document.getElementById('view-targets').addEventListener('click', function(e){
   var budgetMonth = e.target.closest('[data-budget-toggle]');
   if(budgetMonth){
     state.budgetOpen[budgetMonth.dataset.budgetToggle] = !state.budgetOpen[budgetMonth.dataset.budgetToggle];
-    renderBudget(targetRows(), targetMonths());
+    renderBudget();
     return;
   }
   var th = e.target.closest('th[data-sort]');
