@@ -3062,8 +3062,7 @@ function eventStatusInfo(ev){
   var end = new Date(ep.y, ep.m - 1, ep.d);
   var msPerDay = 24 * 3600 * 1000;
   if(end < today){
-    var agoDays = Math.round((today - end) / msPerDay);
-    return { label:'Ended', sub: agoDays > 0 ? (agoDays + ' day' + (agoDays === 1 ? '' : 's') + ' ago') : 'today', cls:'none' };
+    return { label:'Ended', sub:'', cls:'none' };
   }
   if(start > today){
     var inDays = Math.round((start - today) / msPerDay);
