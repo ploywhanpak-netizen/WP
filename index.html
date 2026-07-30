@@ -731,17 +731,10 @@ body.gated .gate{display:flex}
           <button class="nav-link" type="button" data-view="events"><span class="idx">06</span> Events</button>
         </div>
       </div>
-      <div class="nav-group" data-nav-group="social">
-        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Social Analytics</button>
-        <div class="nav-items">
-          <button class="nav-link" type="button" data-view="social-dashboard"><span class="idx">07</span> Dashboard</button>
-          <button class="nav-link" type="button" data-view="social"><span class="idx">08</span> Social Analytics</button>
-        </div>
-      </div>
       <div class="nav-group" data-nav-group="settings">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Settings</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="settings"><span class="idx">09</span> Settings</button>
+          <button class="nav-link" type="button" data-view="settings"><span class="idx">07</span> Settings</button>
         </div>
       </div>
     </nav>
@@ -1088,89 +1081,6 @@ body.gated .gate{display:flex}
       </div>
     </section>
 
-    <!-- ============ DASHBOARD ============ -->
-    <section class="view" id="view-social-dashboard">
-      <header class="topbar">
-        <h2>Dashboard</h2>
-        <p class="sub">Overview across your connected social platforms - switch platforms or combine them all.</p>
-        <div class="filters">
-          <div class="field">
-            <label for="dfPlatform">Platform</label>
-            <select id="dfPlatform">
-              <option value="all">All Platforms (combined)</option>
-              <option value="facebook">Facebook</option>
-              <option value="instagram">Instagram</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="dfYear">Year</label>
-            <select id="dfYear"></select>
-          </div>
-          <div class="field">
-            <label for="dfMonth">Month</label>
-            <select id="dfMonth"></select>
-          </div>
-        </div>
-      </header>
-      <div class="content">
-        <div id="dBanner"></div>
-        <div id="dStatStrip"></div>
-        <div id="dMonthlyCharts"></div>
-        <div id="dMonthlyTable"></div>
-        <div id="dEngagement"></div>
-      </div>
-    </section>
-
-    <!-- ============ SOCIAL ANALYTICS ============ -->
-    <section class="view" id="view-social">
-      <header class="topbar">
-        <h2>Social Analytics</h2>
-        <p class="sub">Facebook and Instagram results imported from Meta Insights - Views, Viewers, Content interactions, Link clicks, Visits and Follows.</p>
-        <div class="filters">
-          <div class="field">
-            <label for="sfPlatform">Platform</label>
-            <select id="sfPlatform">
-              <option value="all">All Platforms (combined)</option>
-              <option value="facebook">Facebook</option>
-              <option value="instagram">Instagram</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="sfYear">Year</label>
-            <select id="sfYear"></select>
-          </div>
-          <div class="field">
-            <label for="sfMonth">Month</label>
-            <select id="sfMonth"></select>
-          </div>
-          <div class="spacer"></div>
-          <p class="chart-note" style="padding:0;margin:0 4px 0 0;align-self:center">Importing into <strong id="sfImportTarget">Facebook</strong></p>
-          <button class="btn primary" type="button" id="btnImportSocial">Import Meta CSV</button>
-          <input type="file" id="fileSocialImport" accept=".csv,text/csv" hidden />
-        </div>
-      </header>
-      <div class="content">
-        <div class="card">
-          <div class="card-head">
-            <h3>Metrics</h3>
-            <span class="hint">Click a row to see its daily chart</span>
-          </div>
-          <div class="table-wrap">
-            <table id="sTable">
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  <th class="num">Total</th>
-                  <th>Coverage</th>
-                  <th style="width:28px"></th>
-                </tr>
-              </thead>
-              <tbody id="sBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
   </div>
 </div>
 
@@ -2091,25 +2001,7 @@ function buildFilters(){
 
   fillSelect(document.getElementById('tYear'), ys, state.tf.year);
   fillSelect(document.getElementById('eYear'), ys, state.ef.year);
-
-  fillSelect(document.getElementById('sfYear'), ys, state.sf.year);
-  fillSelect(document.getElementById('sfMonth'), MONTHS.map(function(m,i){ return [i+1, m]; }), state.sf.month);
-  document.getElementById('sfPlatform').value = state.sf.platform;
-  updateSocialImportTarget();
-
-  fillSelect(document.getElementById('dfYear'), ys, state.df.year);
-  fillSelect(document.getElementById('dfMonth'), MONTHS.map(function(m,i){ return [i+1, m]; }), state.df.month);
-  document.getElementById('dfPlatform').value = state.df.platform;
 }
-function updateSocialImportTarget(){
-  var isAll = state.sf.platform === 'all';
-  var target = document.getElementById('sfImportTarget');
-  var btn = document.getElementById('btnImportSocial');
-  target.textContent = isAll ? 'pick a platform first' : platformLabel(state.sf.platform);
-  btn.disabled = isAll;
-  btn.title = isAll ? 'Switch to Facebook or Instagram to import a file' : '';
-}
-
 /* ---------------- stats ---------------- */
 function statBlock(rows){
   var rate = rows.reduce(function(s,r){ return s + num(r.ratecard); }, 0);
@@ -3836,183 +3728,6 @@ function renderMetricCard(metric, sf){
     chartHtml +
   '</div>';
 }
-function renderSocial(){
-  var year = +state.sf.year, month = +state.sf.month;
-  document.getElementById('sBody').innerHTML = SOCIAL_METRICS.map(function(metric){
-    var days = socialDaysInMonth(state.sf.platform, metric.key, year, month);
-    var withData = days.filter(function(d){ return d.value !== null; });
-    var total = withData.reduce(function(s,d){ return s + d.value; }, 0);
-    var open = !!state.socialOpen[metric.key];
-
-    var coverage = withData.length + ' of ' + days.length + ' days imported';
-    if(state.sf.platform === 'all'){
-      var totals = socialPlatformTotals(metric.key, year, month);
-      coverage += ' · ' + socialPlatformKeys().map(function(pl){
-        return platformLabel(pl) + ' ' + engShort(totals[pl] || 0);
-      }).join(' · ');
-    }
-
-    var row = '<tr class="s-row' + (open ? ' open' : '') + '" data-metric="' + metric.key + '">' +
-      '<td class="name">' + esc(metric.label) + '</td>' +
-      '<td class="num">' + engShort(total) + '</td>' +
-      '<td class="sub">' + coverage + '</td>' +
-      '<td class="num"><span class="s-chevron">&#9660;</span></td>' +
-    '</tr>';
-    var detail = open ? '<tr class="s-detail"><td colspan="4">' + buildDailyChartHtml(days, month) + '</td></tr>' : '';
-    return row + detail;
-  }).join('');
-}
-function donutSVG(segments, size){
-  size = size || 116;
-  var r = size / 2 - 9, C = 2 * Math.PI * r, cx = size / 2, cy = size / 2;
-  var total = segments.reduce(function(s,x){ return s + x.total; }, 0);
-  var offset = 0;
-  var arcs = total <= 0 ? '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#E4E9EF" stroke-width="15"/>' :
-    segments.filter(function(s){ return s.total > 0; }).map(function(s){
-      var frac = s.total / total;
-      var dash = frac * C;
-      var circle = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + s.color + '" stroke-width="15" ' +
-        'stroke-dasharray="' + dash.toFixed(1) + ' ' + (C - dash).toFixed(1) + '" stroke-dashoffset="' + (-offset).toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>';
-      offset += dash;
-      return circle;
-    }).join('');
-  return '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '">' + arcs +
-    '<text x="' + cx + '" y="' + (cy - 3) + '" text-anchor="middle" class="donut-num">' + esc(engShort(total)) + '</text>' +
-    '<text x="' + cx + '" y="' + (cy + 14) + '" text-anchor="middle" class="donut-sub">total</text>' +
-  '</svg>';
-}
-function yearlyMonthlyTotals(platform, metricKey, year){
-  var out = [];
-  for(var m=1;m<=12;m++) out.push({ month:m, total: monthTotal(platform, metricKey, year, m).total, count: monthTotal(platform, metricKey, year, m).count });
-  return out;
-}
-function renderDashboardSummary(){
-  var year = +state.df.year;
-  var platform = state.df.platform;
-  var platLabel = platform === 'all' ? 'All Platforms' : platformLabel(platform);
-
-  document.getElementById('dBanner').innerHTML =
-    '<div class="dash-banner">' + esc(platLabel) + ' Social Summary ' + year + '</div>';
-
-  var yearTotals = SOCIAL_METRICS.map(function(m){
-    return { metric:m, total: yearlyMonthlyTotals(platform, m.key, year).reduce(function(s,x){ return s + x.total; }, 0) };
-  });
-  document.getElementById('dStatStrip').innerHTML =
-    '<div class="dash-stat-strip">' + yearTotals.map(function(x){
-      return '<div class="dash-stat"><span class="dash-stat-label">' + esc(x.metric.label) + '</span><span class="dash-stat-value">' + fmt(x.total) + '</span></div>';
-    }).join('') + '</div>';
-
-  var chartsHtml = SOCIAL_METRICS.map(function(metric){
-    var monthly = yearlyMonthlyTotals(platform, metric.key, year);
-    var maxV = Math.max.apply(null, monthly.map(function(x){ return x.total; }).concat([1]));
-    var top = niceTop(maxV);
-    var lines = '';
-    for(var i=0;i<=3;i++){
-      var v = top * i / 3;
-      lines += '<div class="gridline" style="bottom:' + (i * 33.33).toFixed(1) + '%"><span>' + (i === 0 ? '0' : engShort(v)) + '</span></div>';
-    }
-    var bars = monthly.map(function(x){
-      var h = top ? (x.total / top) * 100 : 0;
-      var title = MONTHS[x.month-1] + ' ' + year + ' - ' + fmt(x.total);
-      return '<button class="bar-col' + (x.total ? ' hit' : ' zero') + '" type="button" title="' + esc(title) + '" aria-label="' + esc(title) + '">' +
-        (x.total ? '<span class="val" style="bottom:calc(' + h.toFixed(1) + '% + 5px)">' + engShort(x.total) + '</span>' : '') +
-        '<span class="bar" style="height:' + Math.max(h, x.total ? 2 : 0.6).toFixed(1) + '%;background:' + metric.accent + '"></span>' +
-      '</button>';
-    }).join('');
-    var xaxis = monthly.map(function(x){ return '<div>' + MON[x.month-1] + '</div>'; }).join('');
-    return '<div class="card dash-month-card">' +
-      '<div class="card-head" style="border:0;padding:14px 14px 2px">' +
-        '<span class="dash-legend-swatch" style="background:' + metric.accent + '"></span>' +
-        '<h3 style="font-family:var(--display);font-size:13.5px;margin:0;font-weight:600">' + esc(metric.label) + '</h3>' +
-      '</div>' +
-      '<div class="chart" style="padding:6px 12px 10px">' +
-        '<div class="plot" style="padding-left:40px">' + lines + bars + '</div>' +
-        '<div class="xaxis" style="padding-left:40px">' + xaxis + '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('dMonthlyCharts').innerHTML = '<div class="dash-monthly-grid">' + chartsHtml + '</div>';
-
-  var activeMonths = [];
-  for(var mo=1; mo<=12; mo++){
-    var anyData = SOCIAL_METRICS.some(function(metric){ return monthTotal(platform, metric.key, year, mo).count > 0; });
-    if(anyData) activeMonths.push(mo);
-  }
-  var tableRows = activeMonths.map(function(mo, i){
-    var cells = SOCIAL_METRICS.map(function(metric){
-      return '<td class="num">' + fmt(monthTotal(platform, metric.key, year, mo).total) + '</td>';
-    }).join('');
-    return '<tr><td class="sub">' + (i + 1) + '.</td><td class="name">' + esc(MONTHS[mo-1]) + ' ' + year + '</td>' + cells + '</tr>';
-  }).join('');
-  document.getElementById('dMonthlyTable').innerHTML =
-    '<div class="card" style="margin-bottom:20px">' +
-      '<div class="card-head"><h3>Monthly Breakdown</h3></div>' +
-      '<div class="table-wrap"><table><thead><tr><th></th><th>Month</th>' +
-        SOCIAL_METRICS.map(function(m){ return '<th class="num">' + esc(m.label) + '</th>'; }).join('') +
-      '</tr></thead><tbody>' +
-      (tableRows || '<tr><td colspan="' + (SOCIAL_METRICS.length + 2) + '" class="sub">No data imported for ' + year + ' yet.</td></tr>') +
-      '</tbody></table></div>' +
-    '</div>';
-}
-function renderEngagementTarget(){
-  var year = +state.df.year, month = +state.df.month;
-  var rows = state.records.filter(function(r){
-    var p = dateParts(r.publishDate);
-    return p && p.y === year && p.m === month;
-  });
-  var achieved = rows.reduce(function(s,r){ return s + engagement(r); }, 0);
-  var target = engagementTarget();
-  var fraction = target > 0 ? achieved / target : 0;
-  var pct = target > 0 ? Math.round(achieved / target * 100) : 0;
-  var hit = achieved >= target;
-  var ringColor = hit ? 'var(--teal)' : 'var(--red)';
-  var ringSoft = hit ? 'var(--teal-soft)' : 'var(--red-soft)';
-  var branchColors = ['var(--teal)','var(--clay)','var(--focus)','var(--violet)','var(--pink)','var(--sky)'];
-
-  var byPlace = {};
-  rows.forEach(function(r){
-    var key = placeKey(r.place) || '(no location)';
-    byPlace[key] = (byPlace[key] || 0) + engagement(r);
-  });
-  var branches = Object.keys(byPlace).map(function(k){ return { place:k, eng:byPlace[k] }; })
-    .sort(function(a,b){ return b.eng - a.eng; });
-
-  var legend = branches.length ? branches.map(function(b, i){
-    var pctOfTarget = target > 0 ? Math.round(b.eng / target * 100) : 0;
-    return '<div class="donut-legend-item" style="cursor:default">' +
-      '<span class="dot" style="background:' + branchColors[i % branchColors.length] + '"></span>' +
-      '<span class="dl-name">' + esc(b.place) + '</span>' +
-      '<span class="dl-pct">' + pctOfTarget + '% of KPI</span>' +
-      '<span class="dl-val">' + fmt(b.eng) + '</span>' +
-    '</div>';
-  }).join('') : '<p class="chart-note" style="padding:4px 0 0">No bookings publish in this month yet.</p>';
-
-  document.getElementById('dEngagement').innerHTML =
-    '<div class="donut-card">' +
-      '<div class="donut-card-head"><h3>Engagement Target</h3><span class="chart-note" style="padding:0">' + esc(MONTHS[month-1]) + ' ' + year + '</span></div>' +
-      '<div class="donut-body">' +
-        ringSVG(ringColor, ringSoft, fraction, pct + '%') +
-        '<div class="donut-legend">' +
-          '<div style="margin-bottom:2px">' +
-            '<div style="font-family:var(--display);font-size:20px;font-weight:700;color:' + (hit ? 'var(--teal)' : 'var(--text)') + ';display:flex;align-items:baseline;gap:5px">' +
-              '<span>' + fmt(achieved) + '</span>' +
-              '<span style="font-size:13px;color:var(--muted);font-weight:500">/</span>' +
-              '<input id="engTargetQuickInput" type="number" min="1" step="100" value="' + target + '" ' +
-                'style="width:82px;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted);background:#fff" ' +
-                'title="Click to change the monthly target" />' +
-            '</div>' +
-            '<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">engagement this month · which branch achieved how much:</div>' +
-          '</div>' +
-          legend +
-        '</div>' +
-      '</div>' +
-    '</div>';
-}
-function renderSocialDashboard(){
-  renderDashboardSummary();
-  renderEngagementTarget();
-}
-
 function render(){
   buildFilters();
   if(state.view === 'records') renderRecords();
@@ -4020,8 +3735,6 @@ function render(){
   else if(state.view === 'billing') renderBilling();
   else if(state.view === 'settings') renderSettings();
   else if(state.view === 'events') renderEvents();
-  else if(state.view === 'social') renderSocial();
-  else if(state.view === 'social-dashboard') renderSocialDashboard();
   else renderTargets();
 }
 
