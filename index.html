@@ -3007,6 +3007,25 @@ function eventGrade(amount, avg){
   if(amount <= avg * 0.7) return 'high';
   return 'mid';
 }
+function eventStatusInfo(ev){
+  var sp = dateParts(ev.startDate);
+  if(!sp) return { label:'-', sub:'', cls:'none' };
+  var ep = dateParts(ev.endDate) || sp;
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var start = new Date(sp.y, sp.m - 1, sp.d);
+  var end = new Date(ep.y, ep.m - 1, ep.d);
+  var msPerDay = 24 * 3600 * 1000;
+  if(end < today){
+    var agoDays = Math.round((today - end) / msPerDay);
+    return { label:'Ended', sub: agoDays > 0 ? (agoDays + ' day' + (agoDays === 1 ? '' : 's') + ' ago') : 'today', cls:'none' };
+  }
+  if(start > today){
+    var inDays = Math.round((start - today) / msPerDay);
+    return { label:'Upcoming', sub: 'in ' + inDays + ' day' + (inDays === 1 ? '' : 's'), cls:'mid' };
+  }
+  var leftDays = Math.round((end - today) / msPerDay);
+  return { label:'Ongoing', sub: leftDays > 0 ? (leftDays + ' day' + (leftDays === 1 ? '' : 's') + ' left') : 'ends today', cls:'good' };
+}
 function renderEvents(){
   renderEventChart();
   var year = +state.ef.year;
@@ -3038,7 +3057,7 @@ function renderEvents(){
   if(state.ef.month === 'all'){
     /* ---- year overview: list of events ---- */
     breakTitle.textContent = 'All events - ' + year;
-    head.innerHTML = '<th>Event</th><th>Location</th><th>Dates</th><th class="num">Days</th><th class="num">Total Sales</th><th class="num">Avg / Day</th><th></th>';
+    head.innerHTML = '<th>Event</th><th>Location</th><th>Dates</th><th>Status</th><th class="num">Days</th><th class="num">Total Sales</th><th class="num">Avg / Day</th><th></th>';
     var rows = (state.events || []).filter(function(ev){
       var overlapsYear = (ev.sales || []).some(function(d){ var p = dateParts(d.date); return p && p.y === year; });
       if(overlapsYear) return true;
@@ -3060,10 +3079,14 @@ function renderEvents(){
       var filledDays = (ev.sales || []).filter(function(d){ return d.date && num(d.amount) > 0; }).length;
       var avgPerDay = filledDays ? total / filledDays : 0;
       var dates = ev.startDate ? (dateLabel(ev.startDate) + (ev.endDate && ev.endDate !== ev.startDate ? ' - ' + dateLabel(ev.endDate) : '')) : '-';
+      var st = eventStatusInfo(ev);
       return '<tr>' +
         '<td class="name" data-label="Event">' + esc(ev.name || '-') + '</td>' +
         '<td class="sub" data-label="Location">' + esc(ev.place || '-') + '</td>' +
         '<td class="date" data-label="Dates">' + dates + '</td>' +
+        '<td data-label="Status"><span class="chip ' + st.cls + '">' + esc(st.label) + '</span>' +
+          (st.sub ? '<div style="font-size:10px;color:var(--muted);margin-top:3px">' + esc(st.sub) + '</div>' : '') +
+        '</td>' +
         '<td class="num" data-label="Days">' + days + '</td>' +
         '<td class="num" data-label="Total Sales">' + money(total) + '</td>' +
         '<td class="num" data-label="Avg / Day">' + (filledDays ? money(avgPerDay) : '-') + '</td>' +
@@ -3077,7 +3100,7 @@ function renderEvents(){
     var grand = rows.reduce(function(sum,ev){ return sum + (ev.sales || []).reduce(function(s2,d){ return s2 + num(d.amount); }, 0); }, 0);
     var grandFilledDays = rows.reduce(function(sum,ev){ return sum + (ev.sales || []).filter(function(d){ return d.date && num(d.amount) > 0; }).length; }, 0);
     var grandAvg = grandFilledDays ? grand / grandFilledDays : 0;
-    foot.innerHTML = '<tr><td colspan="4">Total - ' + rows.length + ' event' + (rows.length === 1 ? '' : 's') + '</td>' +
+    foot.innerHTML = '<tr><td colspan="5">Total - ' + rows.length + ' event' + (rows.length === 1 ? '' : 's') + '</td>' +
       '<td class="num" data-label="Total Sales">' + money(grand) + '</td>' +
       '<td class="num" data-label="Avg / Day">' + (grandFilledDays ? money(grandAvg) : '-') + '</td><td></td></tr>';
   } else {
