@@ -649,6 +649,7 @@ body.gated .gate{display:flex}
           <div class="spacer"></div>
           <button class="btn ghost" type="button" id="btnThisMonth">This month</button>
           <button class="btn" type="button" id="btnImportTop">Import CSV</button>
+          <button class="btn" type="button" id="btnExportTop">Export CSV</button>
           <button class="btn primary" type="button" id="btnAdd">+ Add record</button>
         </div>
       </header>
@@ -3380,7 +3381,7 @@ document.getElementById('fileImport').addEventListener('change', function(e){
   e.target.value = '';
 });
 
-document.getElementById('btnExport').addEventListener('click', function(){
+function exportRecordsCSV(){
   if(!state.records.length){ toast('Nothing to export'); return; }
   var head = ['Channel Name','Influencer Name','Review Location','Review Date','Publish Date','Remark','Ratecard','Barter','Ads','Total Cost','Total Engagement','CPR','Links (JSON)'];
   var lines = [head.join(',')];
@@ -3400,7 +3401,9 @@ document.getElementById('btnExport').addEventListener('click', function(){
   a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
   toast('CSV exported');
-});
+}
+document.getElementById('btnExport').addEventListener('click', exportRecordsCSV);
+document.getElementById('btnExportTop').addEventListener('click', exportRecordsCSV);
 
 /* ---------------- sample data ---------------- */
 function demo(){
