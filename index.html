@@ -886,6 +886,21 @@ body.gated .gate{display:flex}
       </header>
       <div class="content">
         <div class="stats" id="bStats"></div>
+        <div class="card" id="bPendingCard" style="margin-bottom:20px">
+          <div class="card-head">
+            <h3>Needs Attention</h3>
+            <span class="hint" id="bPendingCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="bPendingTable">
+              <thead>
+                <tr><th>PR No.</th><th>Store</th><th>Supplier</th><th class="num">Amount</th><th>Status</th><th class="actions">Actions</th></tr>
+              </thead>
+              <tbody id="bPendingBody"></tbody>
+            </table>
+          </div>
+          <div id="bPendingEmpty"></div>
+        </div>
         <div class="card billing-card">
           <div class="card-head">
             <h3>Projects Requests</h3>
@@ -2686,6 +2701,21 @@ function renderBilling(){
     statCard('', 'รออนุมัติ', money(pendingTotal), pendingRows.length + ' request' + (pendingRows.length === 1 ? '' : 's')),
     statCard('', 'ไม่อนุมัติ', money(rejectedTotal), rejectedRows.length + ' request' + (rejectedRows.length === 1 ? '' : 's'))
   ].join('');
+
+  var attentionRows = rejectedRows.concat(pendingRows);
+  document.getElementById('bPendingCount').textContent = attentionRows.length + ' of ' + rows.length + ' shown';
+  document.getElementById('bPendingBody').innerHTML = attentionRows.map(function(r){
+    return '<tr data-billing-row="' + esc(r.id) + '">' +
+      '<td class="name">' + esc(r.prNo || '-') + '</td>' +
+      '<td class="sub">' + esc(r.store || '-') + '</td>' +
+      '<td class="sub">' + esc(r.supplier || '-') + '</td>' +
+      '<td class="num">' + money(num(r.amount)) + '</td>' +
+      '<td><span class="chip ' + billingStatusClass(r.signature) + '">' + esc(r.signature || 'รออนุมัติ') + '</span></td>' +
+      '<td class="actions"><button class="icon-btn" type="button" data-billing-edit="' + esc(r.id) + '">Edit</button> <button class="icon-btn del" type="button" data-billing-del="' + esc(r.id) + '">Delete</button></td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('bPendingEmpty').innerHTML = attentionRows.length ? '' : '<div class="empty"><h4>Nothing waiting</h4><p>All shown requests are approved.</p></div>';
+
   if(!rows.length){
     document.getElementById('bBody').innerHTML = '';
     document.getElementById('bFoot').innerHTML = '';
