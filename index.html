@@ -469,6 +469,18 @@ legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform
 .mc-compare strong{font-family:var(--display);font-size:15px;font-weight:700;color:var(--text)}
 .mc-compare div:last-child strong{color:var(--muted);font-weight:600}
 
+/* social analytics: table + expand-on-click chart */
+.s-row{cursor:pointer}
+.s-row:hover td{background:#FAFCFE}
+.s-row.open td{background:#F3F8FE}
+.s-row .s-chevron{color:var(--muted);font-size:10px;transition:transform .15s ease}
+.s-row.open .s-chevron{transform:rotate(180deg);color:var(--focus)}
+.s-detail td{background:#FAFCFE;padding:16px 16px 20px;border-bottom:1px solid var(--line)}
+.s-detail .plot{padding-left:44px}
+.s-detail .gridline{left:44px}
+.s-detail .gridline span{left:-42px;width:38px;font-size:9.5px}
+.s-detail .xaxis{padding-left:44px}
+
 /* social analytics metric cards */
 .metric-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px 8px}
 .metric-card .mk{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -1120,7 +1132,25 @@ body.gated .gate{display:flex}
         </div>
       </header>
       <div class="content">
-        <div class="grid2" id="sGrid"></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Metrics</h3>
+            <span class="hint">Click a row to see its daily chart</span>
+          </div>
+          <div class="table-wrap">
+            <table id="sTable">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th class="num">Total</th>
+                  <th>Coverage</th>
+                  <th style="width:28px"></th>
+                </tr>
+              </thead>
+              <tbody id="sBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   </div>
@@ -1863,7 +1893,8 @@ var state = {
   sf: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) },
   df: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) },
   dashCompare: {},
-  dDonutMetric: 'views'
+  dDonutMetric: 'views',
+  socialOpen: {}
 };
 
 function placeKey(v){ return String(v == null ? '' : v).trim(); }
@@ -3722,14 +3753,9 @@ function socialPlatformTotals(metricKey, year, month){
   });
   return totals;
 }
-function renderMetricCard(metric, sf, fancy){
-  var year = +sf.year, month = +sf.month;
-  var days = socialDaysInMonth(sf.platform, metric.key, year, month);
-  var withData = days.filter(function(d){ return d.value !== null; });
-  var total = withData.reduce(function(s,d){ return s + d.value; }, 0);
+function buildDailyChartHtml(days, month){
   var maxV = Math.max.apply(null, days.map(function(d){ return d.value || 0; }).concat([1]));
   var top = niceTop(maxV);
-
   var lines = '';
   for(var i=0;i<=4;i++){
     var v = top * i / 4;
@@ -3744,6 +3770,14 @@ function renderMetricCard(metric, sf, fancy){
     '</button>';
   }).join('');
   var xaxis = days.map(function(d){ return '<div>' + (d.day % 5 === 1 || d.day === days.length ? d.day : '') + '</div>'; }).join('');
+  return '<div class="plot">' + lines + bars + '</div><div class="xaxis">' + xaxis + '</div>';
+}
+function renderMetricCard(metric, sf){
+  var year = +sf.year, month = +sf.month;
+  var days = socialDaysInMonth(sf.platform, metric.key, year, month);
+  var withData = days.filter(function(d){ return d.value !== null; });
+  var total = withData.reduce(function(s,d){ return s + d.value; }, 0);
+  var chartHtml = buildDailyChartHtml(days, month);
 
   var breakdown = '';
   if(sf.platform === 'all'){
@@ -3751,17 +3785,6 @@ function renderMetricCard(metric, sf, fancy){
     breakdown = '<div class="mn">' + socialPlatformKeys().map(function(pl){
       return platformLabel(pl) + ' ' + engShort(totals[pl] || 0);
     }).join(' · ') + '</div>';
-  }
-
-  if(!fancy){
-    return '<div class="metric-card">' +
-      '<div class="mk">' + esc(metric.label) + '</div>' +
-      '<div class="mv">' + engShort(total) + '</div>' +
-      '<div class="mn">' + withData.length + ' of ' + days.length + ' days imported</div>' +
-      breakdown +
-      '<div class="plot">' + lines + bars + '</div>' +
-      '<div class="xaxis">' + xaxis + '</div>' +
-    '</div>';
   }
 
   var pm = prevMonth(year, month);
@@ -3792,12 +3815,34 @@ function renderMetricCard(metric, sf, fancy){
     '</div>' +
     breakdown +
     compare +
-    '<div class="plot">' + lines + bars + '</div>' +
-    '<div class="xaxis">' + xaxis + '</div>' +
+    chartHtml +
   '</div>';
 }
 function renderSocial(){
-  document.getElementById('sGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.sf, false); }).join('');
+  var year = +state.sf.year, month = +state.sf.month;
+  document.getElementById('sBody').innerHTML = SOCIAL_METRICS.map(function(metric){
+    var days = socialDaysInMonth(state.sf.platform, metric.key, year, month);
+    var withData = days.filter(function(d){ return d.value !== null; });
+    var total = withData.reduce(function(s,d){ return s + d.value; }, 0);
+    var open = !!state.socialOpen[metric.key];
+
+    var coverage = withData.length + ' of ' + days.length + ' days imported';
+    if(state.sf.platform === 'all'){
+      var totals = socialPlatformTotals(metric.key, year, month);
+      coverage += ' · ' + socialPlatformKeys().map(function(pl){
+        return platformLabel(pl) + ' ' + engShort(totals[pl] || 0);
+      }).join(' · ');
+    }
+
+    var row = '<tr class="s-row' + (open ? ' open' : '') + '" data-metric="' + metric.key + '">' +
+      '<td class="name">' + esc(metric.label) + '</td>' +
+      '<td class="num">' + engShort(total) + '</td>' +
+      '<td class="sub">' + coverage + '</td>' +
+      '<td class="num"><span class="s-chevron">&#9660;</span></td>' +
+    '</tr>';
+    var detail = open ? '<tr class="s-detail"><td colspan="4">' + buildDailyChartHtml(days, month) + '</td></tr>' : '';
+    return row + detail;
+  }).join('');
 }
 function donutSVG(segments, size){
   size = size || 116;
@@ -3914,7 +3959,7 @@ function renderEngagementTarget(){
 function renderSocialDashboard(){
   renderDashboardOverview();
   renderEngagementTarget();
-  document.getElementById('dGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.df, true); }).join('');
+  document.getElementById('dGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.df); }).join('');
 }
 
 function render(){
@@ -4523,6 +4568,13 @@ document.getElementById('sfPlatform').addEventListener('change', function(e){
 });
 document.getElementById('sfYear').addEventListener('change', function(e){ state.sf.year = e.target.value; renderSocial(); });
 document.getElementById('sfMonth').addEventListener('change', function(e){ state.sf.month = e.target.value; renderSocial(); });
+document.getElementById('sTable').addEventListener('click', function(e){
+  var row = e.target.closest('tr.s-row');
+  if(!row) return;
+  var key = row.dataset.metric;
+  state.socialOpen[key] = !state.socialOpen[key];
+  renderSocial();
+});
 
 document.getElementById('dfPlatform').addEventListener('change', function(e){ state.df.platform = e.target.value; renderSocialDashboard(); });
 document.getElementById('dfYear').addEventListener('change', function(e){ state.df.year = e.target.value; renderSocialDashboard(); });
