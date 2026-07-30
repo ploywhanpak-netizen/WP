@@ -962,11 +962,6 @@ body.gated .gate{display:flex}
             <input id="expenseTypeInput" type="text" placeholder="Add expense type" />
           </div>
           <button class="btn primary" type="button" id="btnAddExpenseType">+ Add type</button>
-          <div class="field">
-            <label for="placementInput">เพลสเม้นต์</label>
-            <input id="placementInput" type="text" placeholder="Add placement" />
-          </div>
-          <button class="btn primary" type="button" id="btnAddPlacement">+ Add placement</button>
         </div>
       </header>
       <div class="content">
@@ -983,7 +978,7 @@ body.gated .gate{display:flex}
             </div>
           </div>
         </div>
-        <div class="card" style="margin-bottom:18px">
+        <div class="card">
           <div class="card-head">
             <h3>Billing settings</h3>
             <span class="hint">Used in Projects Requests</span>
@@ -994,20 +989,6 @@ body.gated .gate{display:flex}
                 <tr><th data-sort="label">ประเภทค่าใช้จ่าย</th><th></th></tr>
               </thead>
               <tbody id="expenseTypeBody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <h3>เพลสเม้นต์</h3>
-            <span class="hint">Used in Projects Requests / ฐานข้อมูล</span>
-          </div>
-          <div class="table-wrap">
-            <table id="placementTable">
-              <thead>
-                <tr><th data-sort="label">เพลสเม้นต์</th><th></th></tr>
-              </thead>
-              <tbody id="placementBody"></tbody>
             </table>
           </div>
         </div>
@@ -1368,7 +1349,6 @@ function persistEventsLocal(){
 function defaultSettings(){
   return {
     expenseTypes: ['Influencer', 'Ads', 'Event', 'Production', 'Media', 'ของใช้สิ้นเปลือง'],
-    placements: ['หน้าร้าน', 'Facebook', 'Instagram', 'TikTok'],
     engagementTarget: 20000
   };
 }
@@ -1386,7 +1366,6 @@ function normalizeSettings(v){
   var base = defaultSettings();
   var prev = (state && state.settings) || {};
   base.expenseTypes = normalizeStringList(v && Array.isArray(v.expenseTypes) ? v.expenseTypes : prev.expenseTypes, base.expenseTypes);
-  base.placements = normalizeStringList(v && Array.isArray(v.placements) ? v.placements : prev.placements, base.placements);
   var t = num(v && v.engagementTarget != null ? v.engagementTarget : prev.engagementTarget);
   base.engagementTarget = t > 0 ? t : 20000;
   return base;
@@ -2564,7 +2543,7 @@ function billingFields(){
     { key:'expenseType', label:'ประเภทค่าใช้จ่าย' },
     { key:'supplier', label:'Supplier' },
     { key:'description', label:'Description', wide:true },
-    { key:'venuePlacement', label:'เพลสเม้นต์' },
+    { key:'venuePlacement', label:'Venue/Placement' },
     { key:'detail', label:'Detail', wide:true },
     { key:'remark', label:'Remark', wide:true },
     { key:'projectDuration', label:'Project Duration' },
@@ -2591,7 +2570,6 @@ function billingTableFields(){
     store: true,
     expenseType: true,
     supplier: true,
-    venuePlacement: true,
     amount: true,
     signature: true
   };
@@ -2671,20 +2649,6 @@ function expenseTypeOptions(value){
   }
   if(!list.length) list = ['Influencer', 'Ads', 'Event'];
   return list.map(function(v){
-    return '<option value="' + esc(v) + '"' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>';
-  }).join('');
-}
-function placements(){
-  return ((state.settings && state.settings.placements) || defaultSettings().placements).slice();
-}
-function placementOptions(value){
-  var list = placements();
-  var current = String(value || '').trim();
-  if(current && list.map(function(v){ return v.toLowerCase(); }).indexOf(current.toLowerCase()) === -1){
-    list.unshift(current);
-  }
-  if(!list.length) list = ['หน้าร้าน', 'Facebook', 'Instagram', 'TikTok'];
-  return '<option value="">-- เลือกข้อมูล --</option>' + list.map(function(v){
     return '<option value="' + esc(v) + '"' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>';
   }).join('');
 }
@@ -2875,7 +2839,7 @@ function openBilling(id){
       billingControl('expenseType', 'ประเภทค่าใช้จ่าย', get('expenseType'), { select:true, options:expenseTypeOptions(get('expenseType')), help:'เพิ่มตัวเลือกได้ที่ Settings' }) +
       billingControl('company', 'Company', get('company'), { select:true, options:fieldOptions('company', get('company'), ['WHANPAK', 'Bloom', 'Pancake Cafe']) }) +
       billingControl('store', 'Store', get('store'), { select:true, options:fieldOptions('store', get('store'), ['Bloom', 'Pancake', 'WHANPAK']) }) +
-      billingControl('venuePlacement', 'เพลสเม้นต์', get('venuePlacement'), { select:true, options:placementOptions(get('venuePlacement')), help:'เพิ่มตัวเลือกได้ที่ Settings' }) +
+      billingControl('venuePlacement', 'Venue/Placement', get('venuePlacement'), { placeholder:'สถานที่/สื่อ' }) +
       billingControl('description', 'Description', get('description'), { span:true, highlight:true, placeholder:'รายละเอียดงาน' }) +
       billingControl('projectDuration', 'Project Duration', get('projectDuration'), { span:true, placeholder:'เช่น 1 ก.ค. 2026 - 31 ก.ค. 2026' }) +
       billingControl('detail', 'Detail', get('detail'), { span:true, textarea:true, rows:4, placeholder:'รายละเอียดงานเพิ่มเติม เงื่อนไข หรือเอกสารประกอบ' }) +
@@ -2978,7 +2942,7 @@ function printBilling(){
     '</div><div>' +
       '<div class="row"><div class="lbl">Project Name</div>' + line(data.description) + '</div>' +
       '<div class="row"><div class="lbl">Project Duration</div>' + line(data.projectDuration) + '</div>' +
-      '<div class="row"><div class="lbl">เพลสเม้นต์</div>' + line(data.venuePlacement) + '</div>' +
+      '<div class="row"><div class="lbl">Venue/Placement</div>' + line(data.venuePlacement) + '</div>' +
       '<div class="row"><div class="lbl">Ref. No.</div>' + line(data.refNo) + '</div>' +
       '<div class="row"><div class="lbl">Store</div>' + line(data.store) + '</div>' +
     '</div></div>' +
@@ -3039,41 +3003,6 @@ function renderSettings(){
       '<td class="actions"><button class="icon-btn del" type="button" data-expense-del="' + item.index + '">Delete</button></td></tr>';
   }).join('') || '<tr><td class="sub" colspan="2">No expense types yet.</td></tr>';
   markSort(document.getElementById('expenseTypeTable'), state.sort.settings);
-  var pList = sortRows(placements().map(function(v, i){ return { label:v, index:i }; }), state.sort.settings, function(r){ return r.label; });
-  var pBody = document.getElementById('placementBody');
-  document.getElementById('placementInput').value = '';
-  pBody.innerHTML = pList.map(function(item){
-    return '<tr><td contenteditable="true" spellcheck="false" tabindex="0" data-placement-edit="' + item.index + '">' + esc(item.label) + '</td>' +
-      '<td class="actions"><button class="icon-btn del" type="button" data-placement-del="' + item.index + '">Delete</button></td></tr>';
-  }).join('') || '<tr><td class="sub" colspan="2">No placements yet.</td></tr>';
-  markSort(document.getElementById('placementTable'), state.sort.settings);
-}
-function addPlacement(){
-  var input = document.getElementById('placementInput');
-  var label = String(input.value || '').trim();
-  if(!label){ input.focus(); return; }
-  var list = placements();
-  if(list.map(function(v){ return v.toLowerCase(); }).indexOf(label.toLowerCase()) > -1){
-    toast('Placement already exists');
-    input.select();
-    return;
-  }
-  list.push(label);
-  state.settings = normalizeSettings({ placements:list });
-  persistSettings();
-  renderSettings();
-  toast('Placement added');
-}
-function savePlacementCell(cell){
-  var idx = +cell.dataset.placementEdit;
-  var label = String(cell.textContent || '').trim();
-  var list = placements();
-  if(!label){ renderSettings(); return; }
-  list[idx] = label;
-  state.settings = normalizeSettings({ placements:list });
-  persistSettings();
-  renderSettings();
-  toast('Saved');
 }
 function addExpenseType(){
   var input = document.getElementById('expenseTypeInput');
@@ -4294,45 +4223,6 @@ document.getElementById('expenseTypeTable').addEventListener('click', function(e
   persistSettings();
   renderSettings();
   toast('Expense type deleted');
-});
-document.getElementById('btnAddPlacement').addEventListener('click', addPlacement);
-document.getElementById('placementInput').addEventListener('keydown', function(e){
-  if(e.key !== 'Enter') return;
-  e.preventDefault();
-  addPlacement();
-});
-document.getElementById('placementTable').addEventListener('focusout', function(e){
-  var cell = e.target.closest('[data-placement-edit]');
-  if(cell) savePlacementCell(cell);
-});
-document.getElementById('placementTable').addEventListener('keydown', function(e){
-  var cell = e.target.closest('[data-placement-edit]');
-  if(!cell) return;
-  if(e.key === 'Enter'){
-    e.preventDefault();
-    cell.blur();
-  } else if(e.key === 'Escape'){
-    e.preventDefault();
-    renderSettings();
-  }
-});
-document.getElementById('placementTable').addEventListener('click', function(e){
-  var th = e.target.closest('th[data-sort]');
-  if(th){
-    setSort('settings', th.dataset.sort);
-    renderSettings();
-    return;
-  }
-  var del = e.target.closest('[data-placement-del]');
-  if(!del) return;
-  var list = placements();
-  var label = list[+del.dataset.placementDel];
-  if(!confirm('Delete "' + label + '" from placements?')) return;
-  list.splice(+del.dataset.placementDel, 1);
-  state.settings = normalizeSettings({ placements:list });
-  persistSettings();
-  renderSettings();
-  toast('Placement deleted');
 });
 ['aBasis','aYear','aMonth','aDay'].forEach(function(id){
   document.getElementById(id).addEventListener('change', function(e){
