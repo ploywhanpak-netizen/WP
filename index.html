@@ -3137,10 +3137,10 @@ function updateEvTotal(){
   var t = state.draftDays.reduce(function(s,d){ return s + num(d.amount); }, 0);
   document.getElementById('evTotal').textContent = money(t);
 }
-function fillEventDays(){
+function fillEventDaysCore(silent){
   var start = document.getElementById('evStart').value;
   var end = document.getElementById('evEnd').value || start;
-  if(!start){ toast('Set a start date first'); return; }
+  if(!start){ if(!silent) toast('Set a start date first'); return; }
   var sp = dateParts(start), ep = dateParts(end) || sp;
   var have = {}; state.draftDays.forEach(function(d){ if(d.date) have[d.date] = true; });
   var cur = new Date(sp.y, sp.m - 1, sp.d);
@@ -3155,8 +3155,10 @@ function fillEventDays(){
   state.draftDays = state.draftDays.filter(function(d){ return d.date || d.amount; });
   if(!state.draftDays.length) state.draftDays.push(blankDay());
   renderEventDays();
-  if(added) toast('Added ' + added + ' day' + (added === 1 ? '' : 's'));
+  if(added && !silent) toast('Added ' + added + ' day' + (added === 1 ? '' : 's'));
 }
+function fillEventDays(){ fillEventDaysCore(false); }
+function fillEventDaysQuiet(){ fillEventDaysCore(true); }
 function saveEvent(){
   var name = document.getElementById('evName').value.trim();
   if(!name){
@@ -4363,34 +4365,11 @@ if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
   connectTeam();
 } else {
   bootLocal();
-}function calculateDays() {
-  var startVal = document.getElementById('evStart').value;
-  var endVal = document.getElementById('evEnd').value;
-
-  if (startVal && endVal) {
-    var startDate = new Date(startVal);
-    var endDate = new Date(endVal);
-
-    // หาผลต่างเวลาในหน่วย Milliseconds
-    var diffTime = endDate.getTime() - startDate.getTime();
-
-    // แปลงเป็นจำนวนวัน (+1 เพื่อให้นับวันแรกด้วย)
-    var diffDays = Math.ceil(diffTime / (1000 * 3600 * 24)) + 1;
-
-    if (diffDays > 0) {
-      console.log('จำนวนวันทั้งหมด:', diffDays);
-    } else {
-      alert('วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น');
-    }
-  }
 }
 
-// 🔽 ผูก Event ให้ฟังก์ชันทำงานอัตโนมัติเมื่อผู้ใช้เลือกวันที่ 🔽
-var elStart = document.getElementById('evStart');
-var elEnd = document.getElementById('evEnd');
-
-if (elStart) elStart.addEventListener('change', calculateDays);
-if (elEnd) elEnd.addEventListener('change', calculateDays);
+/* Start/End date auto-fills the daily sales rows - no need to click "Fill dates from range" manually */
+document.getElementById('evStart').addEventListener('change', fillEventDaysQuiet);
+document.getElementById('evEnd').addEventListener('change', fillEventDaysQuiet);
 })();
 </script>
 </body>
