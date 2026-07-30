@@ -425,6 +425,25 @@ legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform
 .rank-date{flex:1;font-size:13.5px;color:var(--text)}
 .rank-amt{font-family:var(--mono);font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums}
 
+/* dashboard: platform mix donut */
+.donut-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.donut-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.donut-card-head h3{font-family:var(--display);font-size:14.5px;margin:0;font-weight:600}
+.donut-card-head select{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;background:#fff}
+.donut-body{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.donut-reset{border:0;background:none;padding:0;cursor:pointer;border-radius:50%;line-height:0;flex:none}
+.donut-reset:hover{filter:brightness(1.05)}
+.donut-num{font-family:var(--display);font-size:19px;font-weight:700;fill:var(--text)}
+.donut-sub{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;fill:var(--muted)}
+.donut-legend{display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px}
+.donut-legend-item{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;cursor:pointer;font:inherit;font-size:12.5px;text-align:left}
+.donut-legend-item:hover{border-color:#A9B7C4}
+.donut-legend-item.active{border-color:var(--focus);background:#F3F8FE;box-shadow:0 0 0 1px var(--focus) inset}
+.donut-legend-item .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.donut-legend-item .dl-name{flex:1;font-weight:600;color:var(--text)}
+.donut-legend-item .dl-pct{font-family:var(--mono);color:var(--muted);font-size:11px}
+.donut-legend-item .dl-val{font-family:var(--mono);font-weight:700;color:var(--text);min-width:46px;text-align:right}
+
 /* social analytics metric cards - dashboard (fancy) */
 .metric-card.fancy{position:relative;overflow:hidden;padding:0 16px 10px}
 .metric-card.fancy::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--mc-accent,var(--teal))}
@@ -1051,6 +1070,7 @@ body.gated .gate{display:flex}
         </div>
       </header>
       <div class="content">
+        <div id="dOverview"></div>
         <div class="grid2" id="dGrid"></div>
       </div>
     </section>
@@ -1819,7 +1839,8 @@ var state = {
   social: { facebook:{}, instagram:{} },
   sf: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) },
   df: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) },
-  dashCompare: {}
+  dashCompare: {},
+  dDonutMetric: 'views'
 };
 
 function placeKey(v){ return String(v == null ? '' : v).trim(); }
@@ -3639,7 +3660,9 @@ function ringSVG(accent, soft, fraction, centerText){
   '</svg>';
 }
 var PLATFORM_LABELS = { facebook:'Facebook', instagram:'Instagram', tiktok:'TikTok' };
+var PLATFORM_COLORS = { facebook:'var(--focus)', instagram:'var(--pink)', tiktok:'var(--ink)' };
 function platformLabel(pl){ return PLATFORM_LABELS[pl] || (pl.charAt(0).toUpperCase() + pl.slice(1)); }
+function platformColor(pl){ return PLATFORM_COLORS[pl] || 'var(--muted)'; }
 function socialPlatformKeys(){
   var known = ['facebook','instagram'];
   Object.keys(state.social || {}).forEach(function(pl){ if(known.indexOf(pl) === -1) known.push(pl); });
@@ -3751,7 +3774,66 @@ function renderMetricCard(metric, sf, fancy){
 function renderSocial(){
   document.getElementById('sGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.sf, false); }).join('');
 }
+function donutSVG(segments, size){
+  size = size || 116;
+  var r = size / 2 - 9, C = 2 * Math.PI * r, cx = size / 2, cy = size / 2;
+  var total = segments.reduce(function(s,x){ return s + x.total; }, 0);
+  var offset = 0;
+  var arcs = total <= 0 ? '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#E4E9EF" stroke-width="15"/>' :
+    segments.filter(function(s){ return s.total > 0; }).map(function(s){
+      var frac = s.total / total;
+      var dash = frac * C;
+      var circle = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + s.color + '" stroke-width="15" ' +
+        'stroke-dasharray="' + dash.toFixed(1) + ' ' + (C - dash).toFixed(1) + '" stroke-dashoffset="' + (-offset).toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>';
+      offset += dash;
+      return circle;
+    }).join('');
+  return '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '">' + arcs +
+    '<text x="' + cx + '" y="' + (cy - 3) + '" text-anchor="middle" class="donut-num">' + esc(engShort(total)) + '</text>' +
+    '<text x="' + cx + '" y="' + (cy + 14) + '" text-anchor="middle" class="donut-sub">total</text>' +
+  '</svg>';
+}
+function renderDashboardOverview(){
+  var year = +state.df.year, month = +state.df.month;
+  var metricKey = state.dDonutMetric || 'views';
+  var metricMeta = SOCIAL_METRICS.find(function(m){ return m.key === metricKey; }) || SOCIAL_METRICS[0];
+  var segs = socialPlatformKeys().map(function(pl){
+    return { platform:pl, total: monthTotal(pl, metricKey, year, month).total, color: platformColor(pl) };
+  });
+  var grand = segs.reduce(function(s,x){ return s + x.total; }, 0);
+
+  var allActive = state.df.platform === 'all';
+  var legend = '<button class="donut-legend-item' + (allActive ? ' active' : '') + '" type="button" data-donutfilter="all">' +
+    '<span class="dot" style="background:var(--ink)"></span><span class="dl-name">All Platforms</span>' +
+    '<span class="dl-pct">100%</span><span class="dl-val">' + engShort(grand) + '</span></button>' +
+    segs.map(function(s){
+      var pct = grand > 0 ? Math.round(s.total / grand * 100) : 0;
+      var active = state.df.platform === s.platform;
+      return '<button class="donut-legend-item' + (active ? ' active' : '') + '" type="button" data-donutfilter="' + s.platform + '">' +
+        '<span class="dot" style="background:' + s.color + '"></span>' +
+        '<span class="dl-name">' + esc(platformLabel(s.platform)) + '</span>' +
+        '<span class="dl-pct">' + pct + '%</span>' +
+        '<span class="dl-val">' + engShort(s.total) + '</span>' +
+      '</button>';
+    }).join('');
+
+  document.getElementById('dOverview').innerHTML =
+    '<div class="donut-card">' +
+      '<div class="donut-card-head">' +
+        '<h3>Platform mix</h3>' +
+        '<select id="dDonutMetric">' + SOCIAL_METRICS.map(function(m){
+          return '<option value="' + m.key + '"' + (m.key === metricKey ? ' selected' : '') + '>' + esc(m.label) + '</option>';
+        }).join('') + '</select>' +
+      '</div>' +
+      '<div class="donut-body">' +
+        '<button class="donut-reset" type="button" data-donutfilter="all" title="Show all platforms" aria-label="Show all platforms">' + donutSVG(segs) + '</button>' +
+        '<div class="donut-legend">' + legend + '</div>' +
+      '</div>' +
+      '<p class="chart-note" style="padding:10px 0 0">' + esc(metricMeta.label) + ' - ' + esc(MONTHS[month-1]) + ' ' + year + '. Click a platform to filter the cards below.</p>' +
+    '</div>';
+}
 function renderSocialDashboard(){
+  renderDashboardOverview();
   document.getElementById('dGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.df, true); }).join('');
 }
 
@@ -4355,6 +4437,19 @@ document.getElementById('dGrid').addEventListener('click', function(e){
   var key = btn.dataset.compare;
   state.dashCompare[key] = !state.dashCompare[key];
   renderSocialDashboard();
+});
+document.getElementById('dOverview').addEventListener('click', function(e){
+  var btn = e.target.closest('button[data-donutfilter]');
+  if(!btn) return;
+  state.df.platform = btn.dataset.donutfilter;
+  var sel = document.getElementById('dfPlatform');
+  if(sel) sel.value = state.df.platform;
+  renderSocialDashboard();
+});
+document.getElementById('dOverview').addEventListener('change', function(e){
+  if(e.target.id !== 'dDonutMetric') return;
+  state.dDonutMetric = e.target.value;
+  renderDashboardOverview();
 });
 document.getElementById('btnImportSocial').addEventListener('click', pickSocialImportFile);
 document.getElementById('fileSocialImport').addEventListener('change', function(e){
