@@ -911,7 +911,9 @@ body.gated .gate{display:flex}
             <select id="eYear"></select>
           </div>
           <div class="spacer"></div>
+          <button class="btn" type="button" id="btnImportEvents">Import JSON</button>
           <button class="btn primary" type="button" id="btnAddEvent">+ Add event</button>
+          <input type="file" id="fileEventImport" accept=".json,application/json" hidden />
         </div>
       </header>
       <div class="content">
@@ -3084,6 +3086,60 @@ function deleteEvent(id){
   toast('Event deleted');
 }
 
+/* ---------------- event JSON import (QuackApprove export) ---------------- */
+function parseQuackApproveEvents(text){
+  var data = JSON.parse(text);
+  var list = Array.isArray(data.events) ? data.events : (Array.isArray(data) ? data : []);
+  return list.map(function(ev){
+    var daily = ev.dailySales || ev.sales || {};
+    var sales = Object.keys(daily).sort().map(function(date){
+      return { date: date, amount: num(daily[date]) };
+    });
+    return {
+      id: String(ev.id || uid()),
+      name: String(ev.name || '').trim(),
+      place: String(ev.location || ev.place || '').trim(),
+      startDate: ev.start || ev.startDate || '',
+      endDate: ev.end || ev.endDate || '',
+      remark: String(ev.remark || '').trim(),
+      sales: sales
+    };
+  }).filter(function(ev){ return ev.name; });
+}
+function pickEventImportFile(){ document.getElementById('fileEventImport').click(); }
+function importEventsJSON(text){
+  var incoming;
+  try { incoming = parseQuackApproveEvents(text); }
+  catch(e){ toast('Could not read that file - expected a QuackApprove events export'); return; }
+  if(!incoming.length){ toast('No events found in that file'); return; }
+
+  var byId = {};
+  state.events.forEach(function(ev){ byId[ev.id] = ev; });
+  var added = 0, updated = 0, touched = [];
+  incoming.forEach(function(ev){
+    var existing = byId[ev.id];
+    if(existing){
+      Object.keys(ev).forEach(function(k){ if(k !== 'id') existing[k] = ev[k]; });
+      updated++;
+      touched.push(existing);
+    } else {
+      state.events.push(ev);
+      byId[ev.id] = ev;
+      added++;
+      touched.push(ev);
+    }
+  });
+
+  persistEventsLocal();
+  if(live() && touched.length){
+    var batch = fb.fs.writeBatch(fb.db);
+    touched.forEach(function(ev){ batch.set(fb.fs.doc(fb.db, FIREBASE_EVENTS_COLLECTION, ev.id), eventDocBody(ev)); });
+    batch.commit().catch(syncFail);
+  }
+  render();
+  toast('Imported ' + added + ' event' + (added === 1 ? '' : 's') + (updated ? ' - updated ' + updated : ''));
+}
+
 function render(){
   buildFilters();
   if(state.view === 'records') renderRecords();
@@ -3663,6 +3719,16 @@ document.getElementById('eYear').addEventListener('change', function(e){
   renderEvents();
 });
 document.getElementById('btnAddEvent').addEventListener('click', function(){ openEvent(null); });
+document.getElementById('btnImportEvents').addEventListener('click', pickEventImportFile);
+document.getElementById('fileEventImport').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0];
+  if(!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){ importEventsJSON(fr.result); };
+  fr.onerror = function(){ toast('Could not read that file'); };
+  fr.readAsText(f);
+  e.target.value = '';
+});
 document.getElementById('btnSaveEvent').addEventListener('click', saveEvent);
 document.getElementById('btnAddEvDay').addEventListener('click', function(){
   state.draftDays.push(blankDay());
