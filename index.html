@@ -637,13 +637,14 @@ body.gated .gate{display:flex}
       <div class="nav-group" data-nav-group="social">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Social Analytics</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="social"><span class="idx">07</span> Social Analytics</button>
+          <button class="nav-link" type="button" data-view="social-dashboard"><span class="idx">07</span> Dashboard</button>
+          <button class="nav-link" type="button" data-view="social"><span class="idx">08</span> Social Analytics</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="settings">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Settings</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="settings"><span class="idx">08</span> Settings</button>
+          <button class="nav-link" type="button" data-view="settings"><span class="idx">09</span> Settings</button>
         </div>
       </div>
     </nav>
@@ -974,6 +975,35 @@ body.gated .gate{display:flex}
           </div>
           <div id="eEmpty"></div>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ DASHBOARD ============ -->
+    <section class="view" id="view-social-dashboard">
+      <header class="topbar">
+        <h2>Dashboard</h2>
+        <p class="sub">Overview across your connected social platforms - switch platforms or combine them all.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="dfPlatform">Platform</label>
+            <select id="dfPlatform">
+              <option value="all">All Platforms (combined)</option>
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="dfYear">Year</label>
+            <select id="dfYear"></select>
+          </div>
+          <div class="field">
+            <label for="dfMonth">Month</label>
+            <select id="dfMonth"></select>
+          </div>
+        </div>
+      </header>
+      <div class="content">
+        <div class="grid2" id="dGrid"></div>
       </div>
     </section>
 
@@ -1728,7 +1758,8 @@ var state = {
   draftDays: [],
   detailEventId: null,
   social: { facebook:{}, instagram:{} },
-  sf: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) }
+  sf: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) },
+  df: { platform:'all', year:String(now.getFullYear()), month:String(now.getMonth()+1) }
 };
 
 function placeKey(v){ return String(v == null ? '' : v).trim(); }
@@ -1912,6 +1943,10 @@ function buildFilters(){
   fillSelect(document.getElementById('sfMonth'), MONTHS.map(function(m,i){ return [i+1, m]; }), state.sf.month);
   document.getElementById('sfPlatform').value = state.sf.platform;
   updateSocialImportTarget();
+
+  fillSelect(document.getElementById('dfYear'), ys, state.df.year);
+  fillSelect(document.getElementById('dfMonth'), MONTHS.map(function(m,i){ return [i+1, m]; }), state.df.month);
+  document.getElementById('dfPlatform').value = state.df.platform;
 }
 function updateSocialImportTarget(){
   var isAll = state.sf.platform === 'all';
@@ -3454,9 +3489,9 @@ function socialPlatformTotals(metricKey, year, month){
   });
   return totals;
 }
-function renderMetricCard(metric){
-  var year = +state.sf.year, month = +state.sf.month;
-  var days = socialDaysInMonth(state.sf.platform, metric.key, year, month);
+function renderMetricCard(metric, sf){
+  var year = +sf.year, month = +sf.month;
+  var days = socialDaysInMonth(sf.platform, metric.key, year, month);
   var withData = days.filter(function(d){ return d.value !== null; });
   var total = withData.reduce(function(s,d){ return s + d.value; }, 0);
   var maxV = Math.max.apply(null, days.map(function(d){ return d.value || 0; }).concat([1]));
@@ -3478,7 +3513,7 @@ function renderMetricCard(metric){
   var xaxis = days.map(function(d){ return '<div>' + (d.day % 5 === 1 || d.day === days.length ? d.day : '') + '</div>'; }).join('');
 
   var breakdown = '';
-  if(state.sf.platform === 'all'){
+  if(sf.platform === 'all'){
     var totals = socialPlatformTotals(metric.key, year, month);
     breakdown = '<div class="mn">' + socialPlatformKeys().map(function(pl){
       return platformLabel(pl) + ' ' + engShort(totals[pl] || 0);
@@ -3495,7 +3530,10 @@ function renderMetricCard(metric){
   '</div>';
 }
 function renderSocial(){
-  document.getElementById('sGrid').innerHTML = SOCIAL_METRICS.map(renderMetricCard).join('');
+  document.getElementById('sGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.sf); }).join('');
+}
+function renderSocialDashboard(){
+  document.getElementById('dGrid').innerHTML = SOCIAL_METRICS.map(function(m){ return renderMetricCard(m, state.df); }).join('');
 }
 
 function render(){
@@ -3506,6 +3544,7 @@ function render(){
   else if(state.view === 'settings') renderSettings();
   else if(state.view === 'events') renderEvents();
   else if(state.view === 'social') renderSocial();
+  else if(state.view === 'social-dashboard') renderSocialDashboard();
   else renderTargets();
 }
 
@@ -3736,6 +3775,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), functi
     document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
     document.getElementById('view-events').classList.toggle('active', state.view === 'events');
     document.getElementById('view-social').classList.toggle('active', state.view === 'social');
+    document.getElementById('view-social-dashboard').classList.toggle('active', state.view === 'social-dashboard');
     render();
   });
 });
@@ -4086,6 +4126,10 @@ document.getElementById('sfPlatform').addEventListener('change', function(e){
 });
 document.getElementById('sfYear').addEventListener('change', function(e){ state.sf.year = e.target.value; renderSocial(); });
 document.getElementById('sfMonth').addEventListener('change', function(e){ state.sf.month = e.target.value; renderSocial(); });
+
+document.getElementById('dfPlatform').addEventListener('change', function(e){ state.df.platform = e.target.value; renderSocialDashboard(); });
+document.getElementById('dfYear').addEventListener('change', function(e){ state.df.year = e.target.value; renderSocialDashboard(); });
+document.getElementById('dfMonth').addEventListener('change', function(e){ state.df.month = e.target.value; renderSocialDashboard(); });
 document.getElementById('btnImportSocial').addEventListener('click', pickSocialImportFile);
 document.getElementById('fileSocialImport').addEventListener('change', function(e){
   var f = e.target.files && e.target.files[0];
