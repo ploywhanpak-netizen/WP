@@ -148,7 +148,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* ---------- stats ---------- */
 .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px}
 #rStats,#aStats{grid-template-columns:repeat(6,minmax(0,1fr))}
-#tStats{grid-template-columns:repeat(4,minmax(0,1fr))}
+#tStats,#eStats{grid-template-columns:repeat(4,minmax(0,1fr))}
 .stat{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;font:inherit;color:inherit}
 .stat:focus-visible{outline:2px solid rgba(4,120,120,.28);outline-offset:2px}
 .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -390,6 +390,11 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 fieldset{border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px}
 legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 6px}
 
+/* day rows editor (events) */
+.day-row{display:grid;grid-template-columns:1fr 1fr 34px;gap:8px;margin-bottom:8px;align-items:center}
+.day-row input{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text);padding:8px 9px;width:100%;font:inherit}
+.day-row input[data-k="amount"]{text-align:right;font-family:var(--mono)}
+
 /* links editor */
 .link-row{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#FCFDFE}
 .link-top{display:flex;gap:10px;align-items:center;margin-bottom:10px}
@@ -491,7 +496,7 @@ body.gated .gate{display:flex}
   .topbar{position:static}
   .topbar,.content{padding-left:16px;padding-right:16px}
   .content{padding-top:18px}
-  .stats,#rStats,#aStats,#tStats,#bStats{grid-template-columns:repeat(2,1fr)}
+  .stats,#rStats,#aStats,#tStats,#bStats,#eStats{grid-template-columns:repeat(2,1fr)}
   .grid2,.grid3,.grid4{grid-template-columns:1fr}
   .wide-field{grid-column:auto}
   .metrics{grid-template-columns:repeat(2,1fr)}
@@ -597,6 +602,12 @@ body.gated .gate{display:flex}
         <div class="nav-items">
           <button class="nav-link" type="button" data-view="billing"><span class="idx">05</span> Projects Requests</button>
           <button class="nav-link" type="button" data-view="settings"><span class="idx">06</span> Settings</button>
+        </div>
+      </div>
+      <div class="nav-group" data-nav-group="event">
+        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Event</button>
+        <div class="nav-items">
+          <button class="nav-link" type="button" data-view="events"><span class="idx">07</span> Events</button>
         </div>
       </div>
     </nav>
@@ -883,6 +894,49 @@ body.gated .gate{display:flex}
         </div>
       </div>
     </section>
+
+    <!-- ============ EVENTS ============ -->
+    <section class="view" id="view-events">
+      <header class="topbar">
+        <h2>Events</h2>
+        <p class="sub">Track each booth event and its daily sales - see which months and days sold best.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="eYear">Year</label>
+            <select id="eYear"></select>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn primary" type="button" id="btnAddEvent">+ Add event</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="stats" id="eStats"></div>
+        <div class="card chart-card">
+          <div class="card-head">
+            <h3 id="eChartTitle">Sales by month</h3>
+          </div>
+          <div class="crumbs" id="eCrumbs"></div>
+          <div class="chart" id="eChart"></div>
+          <p class="chart-note">Click a bar to see the daily sales for that month.</p>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3 id="eBreakTitle">All events</h3>
+            <span class="hint" id="eCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="eTable">
+              <thead>
+                <tr id="eHead"></tr>
+              </thead>
+              <tbody id="eBody"></tbody>
+              <tfoot id="eFoot"></tfoot>
+            </table>
+          </div>
+          <div id="eEmpty"></div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -969,6 +1023,44 @@ body.gated .gate{display:flex}
   </div>
 </div>
 
+<!-- ============ EVENT MODAL ============ -->
+<div class="backdrop" id="mdEvent">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mdEventTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="mdEventTitle">Add event</h3>
+        <p>Event name is the only required field. Add each day's sales below.</p>
+      </div>
+      <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="f"><label for="evName">Event Name</label><input id="evName" placeholder="e.g. CentralWorld Fair" /></div>
+        <div class="f"><label for="evPlace">Location</label><input id="evPlace" placeholder="Booth or venue" /></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label for="evStart">Start Date</label><input id="evStart" type="date" /></div>
+        <div class="f"><label for="evEnd">End Date</label><input id="evEnd" type="date" /></div>
+      </div>
+      <div class="f"><label for="evRemark">Remark</label><textarea id="evRemark" placeholder="Notes"></textarea></div>
+      <fieldset>
+        <legend>Daily sales</legend>
+        <div id="evDayList"></div>
+        <button class="btn" type="button" id="btnAddEvDay">+ Add day</button>
+        <button class="btn ghost" type="button" id="btnFillEvDays">Fill dates from range</button>
+        <div class="eng-total" style="margin-top:12px">
+          <span class="k">Total sales</span>
+          <span class="v" id="evTotal">฿0</span>
+        </div>
+      </fieldset>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="button" id="btnSaveEvent">Save event</button>
+    </div>
+  </div>
+</div>
+
 <div class="dropzone" id="dropzone"><div class="dropzone-inner">Drop a CSV file to import</div></div>
 <div class="toast" id="toast"></div>
 
@@ -993,6 +1085,7 @@ var FIREBASE_COLLECTION = 'influencerRecords';
 var FIREBASE_TARGET_COLLECTION = 'targetBudget';
 var FIREBASE_TARGET_DOC = 'main';
 var FIREBASE_BILLING_COLLECTION = 'approvalRequests';
+var FIREBASE_EVENTS_COLLECTION = 'boothEvents';
 var KPI_MONTHLY = 20000;           /* engagement target per month */
 var SIGN_IN = 'none';              /* no login screen; Firestore rules control who can read/write */
 var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
@@ -1002,6 +1095,7 @@ var KEY = 'influencer:records:v1';
 var TARGET_KEY = 'influencer:targets:v1';
 var BILLING_KEY = 'whanpak:approval-requests:v1';
 var SETTINGS_KEY = 'whanpak:builder-settings:v1';
+var EVENTS_KEY = 'whanpak:booth-events:v1';
 var canStore = typeof window.storage !== 'undefined' && window.storage;
 
 function loadRecords(){
@@ -1076,6 +1170,22 @@ function persistBillingLocal(){
   try {
     if(canStore) return window.storage.set(BILLING_KEY, JSON.stringify(state.billing || [])).catch(function(){});
     localStorage.setItem(BILLING_KEY, JSON.stringify(state.billing || []));
+  } catch(e){}
+}
+function loadEvents(){
+  if(canStore){
+    return window.storage.get(EVENTS_KEY).then(function(r){
+      if(!r || !r.value) return;
+      try { state.events = JSON.parse(r.value) || []; } catch(e){ state.events = []; }
+    }).catch(function(){});
+  }
+  try { state.events = JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]') || []; } catch(e){ state.events = []; }
+  return Promise.resolve();
+}
+function persistEventsLocal(){
+  try {
+    if(canStore) return window.storage.set(EVENTS_KEY, JSON.stringify(state.events || [])).catch(function(){});
+    localStorage.setItem(EVENTS_KEY, JSON.stringify(state.events || []));
   } catch(e){}
 }
 function defaultSettings(){
@@ -1200,6 +1310,40 @@ function deleteBillingRemote(rows){
     });
   }
 }
+function eventDocBody(ev){
+  var out = { name: ev.name || '', place: ev.place || '', startDate: ev.startDate || '', endDate: ev.endDate || '', remark: ev.remark || '' };
+  out.sales = (ev.sales || []).map(function(d){ return { date: d.date || '', amount: num(d.amount) }; });
+  out.updatedAt = Date.now();
+  out.updatedBy = whoami();
+  return out;
+}
+function saveEventOne(ev){
+  persistEventsLocal();
+  if(!live()) return;
+  fb.fs.setDoc(fb.fs.doc(fb.db, FIREBASE_EVENTS_COLLECTION, ev.id), eventDocBody(ev)).catch(syncFail);
+}
+function removeEventOne(id){
+  persistEventsLocal();
+  if(!live()) return;
+  fb.fs.deleteDoc(fb.fs.doc(fb.db, FIREBASE_EVENTS_COLLECTION, id)).catch(syncFail);
+}
+function subscribeEvents(){
+  if(fb.unsubEvents) return;
+  fb.unsubEvents = fb.fs.onSnapshot(fb.fs.collection(fb.db, FIREBASE_EVENTS_COLLECTION), function(snap){
+    var list = [];
+    snap.forEach(function(d){
+      var v = d.data() || {};
+      v.id = d.id;
+      if(!Array.isArray(v.sales)) v.sales = [];
+      list.push(v);
+    });
+    state.events = list;
+    persistEventsLocal();
+    render();
+  }, function(err){
+    setStoreState(false, 'Event sync error - ' + (err.code || 'check your Firestore rules'));
+  });
+}
 function clearBillingData(){
   var rows = (state.billing || []).slice();
   if(!rows.length){
@@ -1295,12 +1439,13 @@ function connectTeam(){
     import(SDK + 'firebase-firestore.js')
   ]).then(function(m){
     var app = m[0].initializeApp(FIREBASE_CONFIG);
-    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null };
+    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null, unsubEvents:null };
     renderAuthBox();
     updateGate();
     subscribe();
     subscribeTargets();
     subscribeBilling();
+    subscribeEvents();
   }).catch(function(e){
     fb = null;
     document.body.classList.remove('gated');
@@ -1399,6 +1544,7 @@ var state = {
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
   tf: { year:String(now.getFullYear()) },
+  ef: { year:String(now.getFullYear()), month:'all' },
   sort: { records:null, analytics:null, targets:null, budget:null, billing:null, settings:null },
   targets: {},
   settings: defaultSettings(),
@@ -1408,7 +1554,10 @@ var state = {
   budgetOpen: {},
   editingId: null,
   linksId: null,
-  draftLinks: []
+  draftLinks: [],
+  events: [],
+  editingEventId: null,
+  draftDays: []
 };
 
 function placeKey(v){ return String(v == null ? '' : v).trim(); }
@@ -1523,6 +1672,9 @@ function years(){
     });
   });
   Object.keys(state.targets || {}).forEach(function(y){ if(/^\d+$/.test(y)) set[y] = 1; });
+  (state.events || []).forEach(function(ev){
+    (ev.sales || []).forEach(function(d){ var p = dateParts(d.date); if(p) set[p.y] = 1; });
+  });
   set[now.getFullYear()] = 1;
   return Object.keys(set).map(Number).sort(function(a,b){ return b-a; });
 }
@@ -1577,6 +1729,7 @@ function buildFilters(){
   document.getElementById('aBasis').value = state.af.basis;
 
   fillSelect(document.getElementById('tYear'), ys, state.tf.year);
+  fillSelect(document.getElementById('eYear'), ys, state.ef.year);
 }
 
 /* ---------------- stats ---------------- */
@@ -2665,12 +2818,274 @@ function importBillingCSV(text){
   toast('Imported ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + (skipped ? ' · skipped ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') : ''));
 }
 
+/* ---------------- events view ---------------- */
+function eventSalesFlat(){
+  var out = [];
+  (state.events || []).forEach(function(ev){
+    (ev.sales || []).forEach(function(d){
+      if(!d || !d.date) return;
+      out.push({ date:d.date, amount:num(d.amount), eventId:ev.id, eventName:ev.name || '(unnamed event)', place:ev.place || '' });
+    });
+  });
+  return out;
+}
+function eventBuckets(year){
+  var flat = eventSalesFlat().filter(function(d){ var p = dateParts(d.date); return p && p.y === year; });
+  var list = [];
+  for(var m=1;m<=12;m++){
+    (function(m){
+      var entries = flat.filter(function(d){ var p = dateParts(d.date); return p.m === m; });
+      list.push({
+        key:String(m), label:MON[m-1],
+        entries: entries,
+        sales: entries.reduce(function(s,d){ return s + d.amount; }, 0),
+        days: entries.filter(function(d){ return d.amount > 0; }).length
+      });
+    })(m);
+  }
+  return list;
+}
+function renderEventChart(){
+  var year = +state.ef.year;
+  var list = eventBuckets(year);
+  var maxSales = Math.max.apply(null, list.map(function(x){ return x.sales; }).concat([1]));
+  var top = niceTop(maxSales);
+
+  document.getElementById('eChartTitle').textContent = 'Sales by month - ' + year;
+
+  var crumbs = ['<span>View:</span>', '<button type="button" data-ecrumb="year">' + year + '</button>'];
+  if(state.ef.month !== 'all') crumbs.push('<span>/</span><span>' + MONTHS[+state.ef.month - 1] + '</span>');
+  document.getElementById('eCrumbs').innerHTML = crumbs.join(' ');
+
+  var lines = '';
+  for(var i=0;i<=4;i++){
+    var v = top * i / 4;
+    lines += '<div class="gridline" style="bottom:' + (i*25) + '%"><span>' + (i === 0 ? '0' : moneyShort(v)) + '</span></div>';
+  }
+
+  var bars = list.map(function(x){
+    var h = top ? (x.sales / top) * 100 : 0;
+    var on = state.ef.month !== 'all' && String(state.ef.month) === x.key;
+    var title = x.label + ' - ' + money(x.sales) + (x.days ? ' - ' + x.days + ' day' + (x.days === 1 ? '' : 's') + ' with sales' : ' - no sales');
+    return '<button class="bar-col' + (on ? ' selected' : '') + (x.sales ? ' hit' : ' zero') + '" type="button" ' +
+      'data-ebucket="' + x.key + '" title="' + esc(title) + '" aria-label="' + esc(title) + '">' +
+      (x.sales ? '<span class="val" style="bottom:calc(' + h.toFixed(1) + '% + 5px)">' + moneyShort(x.sales) + '</span>' : '') +
+      '<span class="bar" style="height:' + Math.max(h, x.sales ? 2 : 0.6).toFixed(1) + '%"></span>' +
+    '</button>';
+  }).join('');
+
+  document.getElementById('eChart').innerHTML =
+    '<div class="plot">' + lines + bars + '</div>' +
+    '<div class="xaxis">' + list.map(function(x){
+      return '<div class="' + (state.ef.month !== 'all' && String(state.ef.month) === x.key ? 'on' : '') + '">' + esc(x.label) + '</div>';
+    }).join('') + '</div>';
+}
+function eventGrade(amount, avg){
+  if(!avg) return 'none';
+  if(amount >= avg * 1.1) return 'good';
+  if(amount <= avg * 0.7) return 'high';
+  return 'mid';
+}
+function renderEvents(){
+  renderEventChart();
+  var year = +state.ef.year;
+  var head = document.getElementById('eHead');
+  var body = document.getElementById('eBody');
+  var foot = document.getElementById('eFoot');
+  var empty = document.getElementById('eEmpty');
+  var breakTitle = document.getElementById('eBreakTitle');
+  var count = document.getElementById('eCount');
+
+  var s = { total:0, events:0, bestDay:null, activeDays:0 };
+  var flat = eventSalesFlat().filter(function(d){ var p = dateParts(d.date); return p && p.y === year; });
+  var evIds = {};
+  flat.forEach(function(d){
+    s.total += d.amount;
+    evIds[d.eventId] = 1;
+    if(d.amount > 0){
+      s.activeDays++;
+      if(!s.bestDay || d.amount > s.bestDay.amount) s.bestDay = d;
+    }
+  });
+  s.events = Object.keys(evIds).length;
+  document.getElementById('eStats').innerHTML =
+    statCard('accent-eng', 'Total Sales', money(s.total), 'This year') +
+    statCard('', 'Events', s.events, s.events === 1 ? 'booth' : 'booths') +
+    statCard('', 'Best Day', s.bestDay ? money(s.bestDay.amount) : '-', s.bestDay ? dateLabel(s.bestDay.date) : 'No sales yet') +
+    statCard('', 'Avg / Active Day', money(s.activeDays ? s.total / s.activeDays : 0), s.activeDays + ' day' + (s.activeDays === 1 ? '' : 's') + ' with sales');
+
+  if(state.ef.month === 'all'){
+    /* ---- year overview: list of events ---- */
+    breakTitle.textContent = 'All events - ' + year;
+    head.innerHTML = '<th>Event</th><th>Location</th><th>Dates</th><th class="num">Days</th><th class="num">Total Sales</th><th></th>';
+    var rows = (state.events || []).filter(function(ev){
+      var overlapsYear = (ev.sales || []).some(function(d){ var p = dateParts(d.date); return p && p.y === year; });
+      if(overlapsYear) return true;
+      var sp = dateParts(ev.startDate), ep = dateParts(ev.endDate);
+      return (sp && sp.y === year) || (ep && ep.y === year);
+    }).sort(function(a,b){ return String(b.startDate || '').localeCompare(String(a.startDate || '')); });
+
+    count.textContent = rows.length + ' event' + (rows.length === 1 ? '' : 's');
+
+    if(!rows.length){
+      body.innerHTML = ''; foot.innerHTML = '';
+      empty.innerHTML = '<div class="empty"><h4>No events yet</h4><p>Add a booth event and log its daily sales.</p><button class="btn primary" type="button" data-act="addevent">+ Add event</button></div>';
+      return;
+    }
+    empty.innerHTML = '';
+    body.innerHTML = rows.map(function(ev){
+      var total = (ev.sales || []).reduce(function(sum,d){ return sum + num(d.amount); }, 0);
+      var days = (ev.sales || []).filter(function(d){ return d.date; }).length;
+      var dates = ev.startDate ? (dateLabel(ev.startDate) + (ev.endDate && ev.endDate !== ev.startDate ? ' - ' + dateLabel(ev.endDate) : '')) : '-';
+      return '<tr>' +
+        '<td class="name" data-label="Event">' + esc(ev.name || '-') + '</td>' +
+        '<td class="sub" data-label="Location">' + esc(ev.place || '-') + '</td>' +
+        '<td class="date" data-label="Dates">' + dates + '</td>' +
+        '<td class="num" data-label="Days">' + days + '</td>' +
+        '<td class="num" data-label="Total Sales">' + money(total) + '</td>' +
+        '<td><div class="row-actions">' +
+          '<button class="icon-btn" type="button" data-editevent="' + ev.id + '">Edit</button>' +
+          '<button class="icon-btn del" type="button" data-delevent="' + ev.id + '">Delete</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+    var grand = rows.reduce(function(sum,ev){ return sum + (ev.sales || []).reduce(function(s2,d){ return s2 + num(d.amount); }, 0); }, 0);
+    foot.innerHTML = '<tr><td colspan="4">Total - ' + rows.length + ' event' + (rows.length === 1 ? '' : 's') + '</td>' +
+      '<td class="num" data-label="Total Sales">' + money(grand) + '</td><td></td></tr>';
+  } else {
+    /* ---- month drill-down: daily sales ---- */
+    var monthName = MONTHS[+state.ef.month - 1];
+    breakTitle.textContent = 'Daily sales - ' + monthName + ' ' + year;
+    head.innerHTML = '<th>Date</th><th>Event</th><th>Location</th><th class="num">Sales</th>';
+    var dayRows = flat.filter(function(d){ var p = dateParts(d.date); return p.m === +state.ef.month; })
+      .sort(function(a,b){ return a.date.localeCompare(b.date); });
+    count.textContent = dayRows.length + ' day' + (dayRows.length === 1 ? '' : 's');
+
+    if(!dayRows.length){
+      body.innerHTML = ''; foot.innerHTML = '';
+      empty.innerHTML = '<div class="empty"><h4>No sales logged in ' + esc(monthName) + '</h4><p>Pick another month, or add sales to an event.</p></div>';
+      return;
+    }
+    empty.innerHTML = '';
+    var activeAmounts = dayRows.filter(function(d){ return d.amount > 0; }).map(function(d){ return d.amount; });
+    var avg = activeAmounts.length ? activeAmounts.reduce(function(s,v){ return s+v; },0) / activeAmounts.length : 0;
+    body.innerHTML = dayRows.map(function(d){
+      return '<tr>' +
+        '<td class="date" data-label="Date">' + dateLabel(d.date) + '</td>' +
+        '<td class="name" data-label="Event">' + esc(d.eventName) + '</td>' +
+        '<td class="sub" data-label="Location">' + esc(d.place || '-') + '</td>' +
+        '<td class="num" data-label="Sales"><span class="chip ' + eventGrade(d.amount, avg) + '">' + money(d.amount) + '</span></td>' +
+      '</tr>';
+    }).join('');
+    var monthTotal = dayRows.reduce(function(s,d){ return s + d.amount; }, 0);
+    foot.innerHTML = '<tr><td colspan="3">Total - ' + dayRows.length + ' day' + (dayRows.length === 1 ? '' : 's') + '</td>' +
+      '<td class="num" data-label="Sales">' + money(monthTotal) + '</td></tr>';
+  }
+}
+
+/* ---------------- event modal ---------------- */
+function blankDay(){ return { date:'', amount:'' }; }
+function openEvent(id){
+  state.editingEventId = id || null;
+  var ev = id ? state.events.find(function(x){ return x.id === id; }) : null;
+  document.getElementById('mdEventTitle').textContent = ev ? 'Edit event' : 'Add event';
+  document.getElementById('evName').value = ev ? (ev.name || '') : '';
+  document.getElementById('evPlace').value = ev ? (ev.place || '') : '';
+  document.getElementById('evStart').value = ev ? (ev.startDate || '') : '';
+  document.getElementById('evEnd').value = ev ? (ev.endDate || '') : '';
+  document.getElementById('evRemark').value = ev ? (ev.remark || '') : '';
+  state.draftDays = ev && (ev.sales || []).length
+    ? ev.sales.map(function(d){ return { date:d.date || '', amount: d.amount === 0 ? 0 : (d.amount || '') }; })
+    : [blankDay()];
+  renderEventDays();
+  openModal('mdEvent');
+  setTimeout(function(){ document.getElementById('evName').focus(); }, 30);
+}
+function renderEventDays(){
+  document.getElementById('evDayList').innerHTML = state.draftDays.map(function(d, i){
+    return '<div class="day-row">' +
+      '<input type="date" data-i="' + i + '" data-k="date" value="' + esc(d.date) + '" aria-label="Sale date ' + (i+1) + '" />' +
+      '<input type="number" min="0" step="1" data-i="' + i + '" data-k="amount" value="' + esc(d.amount) + '" placeholder="0" aria-label="Sale amount ' + (i+1) + '" />' +
+      '<button class="icon-btn del" type="button" data-rmday="' + i + '" aria-label="Remove day">&times;</button>' +
+    '</div>';
+  }).join('');
+  updateEvTotal();
+}
+function updateEvTotal(){
+  var t = state.draftDays.reduce(function(s,d){ return s + num(d.amount); }, 0);
+  document.getElementById('evTotal').textContent = money(t);
+}
+function fillEventDays(){
+  var start = document.getElementById('evStart').value;
+  var end = document.getElementById('evEnd').value || start;
+  if(!start){ toast('Set a start date first'); return; }
+  var sp = dateParts(start), ep = dateParts(end) || sp;
+  var have = {}; state.draftDays.forEach(function(d){ if(d.date) have[d.date] = true; });
+  var cur = new Date(sp.y, sp.m - 1, sp.d);
+  var last = new Date(ep.y, ep.m - 1, ep.d);
+  if(last < cur){ var t = cur; cur = last; last = t; }
+  var added = 0;
+  while(cur <= last){
+    var iso = cur.getFullYear() + '-' + pad(cur.getMonth()+1) + '-' + pad(cur.getDate());
+    if(!have[iso]){ state.draftDays.push({ date:iso, amount:'' }); have[iso] = true; added++; }
+    cur.setDate(cur.getDate() + 1);
+  }
+  state.draftDays = state.draftDays.filter(function(d){ return d.date || d.amount; });
+  if(!state.draftDays.length) state.draftDays.push(blankDay());
+  renderEventDays();
+  if(added) toast('Added ' + added + ' day' + (added === 1 ? '' : 's'));
+}
+function saveEvent(){
+  var name = document.getElementById('evName').value.trim();
+  if(!name){
+    document.getElementById('evName').focus();
+    toast('Event name is needed to save');
+    return;
+  }
+  var sales = state.draftDays
+    .filter(function(d){ return String(d.date).trim(); })
+    .map(function(d){ return { date:d.date, amount:num(d.amount) }; })
+    .sort(function(a,b){ return a.date.localeCompare(b.date); });
+  var data = {
+    name: name,
+    place: document.getElementById('evPlace').value.trim(),
+    startDate: document.getElementById('evStart').value,
+    endDate: document.getElementById('evEnd').value,
+    remark: document.getElementById('evRemark').value.trim(),
+    sales: sales
+  };
+  var target, added = false;
+  if(state.editingEventId){
+    target = state.events.find(function(x){ return x.id === state.editingEventId; });
+    Object.keys(data).forEach(function(k){ target[k] = data[k]; });
+  } else {
+    data.id = uid();
+    state.events.push(data);
+    target = data;
+    added = true;
+  }
+  saveEventOne(target);
+  closeModal('mdEvent');
+  render();
+  toast(added ? 'Event added' : 'Event updated');
+}
+function deleteEvent(id){
+  var ev = state.events.find(function(x){ return x.id === id; });
+  if(!ev) return;
+  if(!confirm('Delete "' + (ev.name || 'this event') + '"? This cannot be undone.')) return;
+  state.events = state.events.filter(function(x){ return x.id !== id; });
+  removeEventOne(id);
+  render();
+  toast('Event deleted');
+}
+
 function render(){
   buildFilters();
   if(state.view === 'records') renderRecords();
   else if(state.view === 'analytics') renderAnalytics();
   else if(state.view === 'billing') renderBilling();
   else if(state.view === 'settings') renderSettings();
+  else if(state.view === 'events') renderEvents();
   else renderTargets();
 }
 
@@ -2899,6 +3314,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), functi
     document.getElementById('view-targets').classList.toggle('active', state.view === 'targets' || state.view === 'budget');
     document.getElementById('view-billing').classList.toggle('active', state.view === 'billing');
     document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
+    document.getElementById('view-events').classList.toggle('active', state.view === 'events');
     render();
   });
 });
@@ -3236,6 +3652,54 @@ document.getElementById('linkList').addEventListener('click', function(e){
   renderLinks();
 });
 
+document.getElementById('eYear').addEventListener('change', function(e){
+  state.ef.year = e.target.value;
+  state.ef.month = 'all';
+  renderEvents();
+});
+document.getElementById('btnAddEvent').addEventListener('click', function(){ openEvent(null); });
+document.getElementById('btnSaveEvent').addEventListener('click', saveEvent);
+document.getElementById('btnAddEvDay').addEventListener('click', function(){
+  state.draftDays.push(blankDay());
+  renderEventDays();
+  var inputs = document.querySelectorAll('#evDayList input[data-k="date"]');
+  if(inputs.length) inputs[inputs.length-1].focus();
+});
+document.getElementById('btnFillEvDays').addEventListener('click', fillEventDays);
+document.getElementById('evDayList').addEventListener('input', function(e){
+  var i = e.target.dataset.i, k = e.target.dataset.k;
+  if(i === undefined || !k) return;
+  state.draftDays[+i][k] = e.target.value;
+  updateEvTotal();
+});
+document.getElementById('evDayList').addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('button[data-rmday]') : null;
+  if(!btn) return;
+  var idx = btn.dataset.rmday;
+  state.draftDays.splice(+idx, 1);
+  if(!state.draftDays.length) state.draftDays.push(blankDay());
+  renderEventDays();
+});
+document.getElementById('eChart').addEventListener('click', function(e){
+  var b = e.target.closest('[data-ebucket]');
+  if(!b) return;
+  var key = b.dataset.ebucket;
+  state.ef.month = (state.ef.month === key ? 'all' : key);
+  render();
+});
+document.getElementById('eCrumbs').addEventListener('click', function(e){
+  if(!e.target.dataset || !e.target.dataset.ecrumb) return;
+  state.ef.month = 'all';
+  render();
+});
+document.getElementById('view-events').addEventListener('click', function(e){
+  var t = e.target.closest('button');
+  if(!t) return;
+  if(t.dataset.editevent) openEvent(t.dataset.editevent);
+  else if(t.dataset.delevent) deleteEvent(t.dataset.delevent);
+  else if(t.dataset.act === 'addevent') openEvent(null);
+});
+
 document.getElementById('view-records').addEventListener('click', function(e){
   var t = e.target.closest('button');
   if(!t) return;
@@ -3460,7 +3924,7 @@ function recovered(){
 /* ---------------- boot ---------------- */
 function bootLocal(){
   if(!canStore) setStoreState(false, 'Saving is off here - records last for this session');
-  return Promise.all([loadRecords(), loadTargets(), loadBilling(), loadSettings()]).then(function(all){
+  return Promise.all([loadRecords(), loadTargets(), loadBilling(), loadSettings(), loadEvents()]).then(function(all){
     var data = all[0];
     var seeded = data && data.seeded;
     state.records = data && Array.isArray(data.records) ? data.records : [];
@@ -3477,7 +3941,7 @@ function bootLocal(){
 }
 
 if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
-  Promise.all([loadTargets(), loadBilling(), loadSettings()]).then(render);
+  Promise.all([loadTargets(), loadBilling(), loadSettings(), loadEvents()]).then(render);
   connectTeam();
 } else {
   bootLocal();
