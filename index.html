@@ -398,6 +398,22 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 fieldset{border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px}
 legend{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 6px}
 
+/* event detail: review pins + linked reviews */
+.bar-col .chart-pin{
+  position:absolute;top:2px;left:50%;transform:translateX(-50%);width:9px;height:9px;border-radius:50%;
+  background:var(--clay);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.28);
+}
+.linked-row{display:flex;align-items:flex-start;gap:10px;padding:10px 4px;border-bottom:1px solid #EDF1F5}
+.linked-row:last-child{border-bottom:0}
+.linked-row .lr-info{flex:1;min-width:0}
+.linked-row .lr-name{font-size:13.5px;font-weight:600;color:var(--text)}
+.linked-row .lr-date{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
+.linked-row .lr-lift{font-size:11.5px;margin-top:5px}
+.linked-row .lr-lift.up{color:var(--teal);font-weight:600}
+.linked-row .lr-lift.down{color:var(--red);font-weight:600}
+.linked-row .lr-lift.na{color:var(--muted)}
+#edLinkResults{margin-top:2px}
+
 /* event detail: daily ranking */
 .rank-row{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid #EDF1F5}
 .rank-row:last-child{border-bottom:0}
@@ -1218,6 +1234,16 @@ body.gated .gate{display:flex}
         <h3 style="font-family:var(--display);font-size:14.5px;margin:0;font-weight:600">Daily sales ranking</h3>
       </div>
       <div id="edRank"></div>
+      <div class="card-head" style="padding:0;border:0;margin:22px 0 4px">
+        <h3 style="font-family:var(--display);font-size:14.5px;margin:0;font-weight:600">Related influencer reviews</h3>
+      </div>
+      <p class="chart-note" style="padding:0;margin:0 0 8px">Link a review to see if sales moved around the day it published.</p>
+      <div id="edLinked"></div>
+      <div class="f" style="margin-top:6px">
+        <label for="edLinkSearch">Link a review</label>
+        <input id="edLinkSearch" type="search" placeholder="Search by channel, influencer or location" autocomplete="off" />
+        <div id="edLinkResults"></div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn ghost" type="button" data-close>Close</button>
@@ -1512,6 +1538,7 @@ function deleteBillingRemote(rows){
 function eventDocBody(ev){
   var out = { name: ev.name || '', place: ev.place || '', startDate: ev.startDate || '', endDate: ev.endDate || '', remark: ev.remark || '' };
   out.sales = (ev.sales || []).map(function(d){ return { date: d.date || '', amount: num(d.amount) }; });
+  out.linkedRecordIds = Array.isArray(ev.linkedRecordIds) ? ev.linkedRecordIds.slice() : [];
   out.updatedAt = Date.now();
   out.updatedBy = whoami();
   return out;
@@ -3319,6 +3346,7 @@ function saveEvent(){
     Object.keys(data).forEach(function(k){ target[k] = data[k]; });
   } else {
     data.id = uid();
+    data.linkedRecordIds = [];
     state.events.push(data);
     target = data;
     added = true;
@@ -3338,12 +3366,89 @@ function deleteEvent(id){
   toast('Event deleted');
 }
 
+/* ---------------- event <-> influencer review linking ---------------- */
+function reviewDateFor(r){ return (r && (r.publishDate || r.reviewDate)) || ''; }
+function linkedRecordsFor(ev){
+  var ids = Array.isArray(ev.linkedRecordIds) ? ev.linkedRecordIds : [];
+  return ids.map(function(id){ return state.records.find(function(r){ return r.id === id; }); }).filter(Boolean);
+}
+function salesLift(ev, record, windowDays){
+  windowDays = windowDays || 3;
+  var p = dateParts(reviewDateFor(record));
+  if(!p) return null;
+  var salesMap = {};
+  (ev.sales || []).forEach(function(d){ if(d.date) salesMap[d.date] = num(d.amount); });
+  var pubTime = new Date(p.y, p.m - 1, p.d).getTime();
+  var before = [], after = [];
+  for(var i=1;i<=windowDays;i++){
+    var bd = new Date(pubTime - i * 86400000);
+    var biso = bd.getFullYear() + '-' + pad(bd.getMonth()+1) + '-' + pad(bd.getDate());
+    if(salesMap.hasOwnProperty(biso)) before.push(salesMap[biso]);
+    var ad = new Date(pubTime + i * 86400000);
+    var aiso = ad.getFullYear() + '-' + pad(ad.getMonth()+1) + '-' + pad(ad.getDate());
+    if(salesMap.hasOwnProperty(aiso)) after.push(salesMap[aiso]);
+  }
+  if(!before.length || !after.length) return null;
+  var avgBefore = before.reduce(function(s,v){ return s+v; }, 0) / before.length;
+  var avgAfter = after.reduce(function(s,v){ return s+v; }, 0) / after.length;
+  var pct = avgBefore > 0 ? Math.round((avgAfter - avgBefore) / avgBefore * 100) : (avgAfter > 0 ? 100 : null);
+  return { avgBefore:avgBefore, avgAfter:avgAfter, pct:pct, beforeDays:before.length, afterDays:after.length };
+}
+function renderEventLinkedReviews(ev){
+  var linked = linkedRecordsFor(ev);
+  var box = document.getElementById('edLinked');
+  if(!linked.length){
+    box.innerHTML = '<div class="empty"><p>No reviews linked yet. Search below to attach one.</p></div>';
+    return;
+  }
+  box.innerHTML = linked.map(function(r){
+    var lift = salesLift(ev, r, 3);
+    var liftCls = 'na', liftText = 'Not enough sales data around this date to compare';
+    if(lift && lift.pct !== null){
+      liftCls = lift.pct >= 0 ? 'up' : 'down';
+      liftText = (lift.pct >= 0 ? '+' : '') + lift.pct + '% avg. daily sales in the ' + lift.afterDays + ' day' + (lift.afterDays===1?'':'s') +
+        ' after vs ' + lift.beforeDays + ' day' + (lift.beforeDays===1?'':'s') + ' before publish';
+    }
+    return '<div class="linked-row">' +
+      '<div class="lr-info">' +
+        '<div class="lr-name">' + esc(r.channel || '-') + (r.influencer ? ' · ' + esc(r.influencer) : '') + '</div>' +
+        '<div class="lr-date">Published ' + dateLabel(reviewDateFor(r)) + (r.place ? ' · ' + esc(r.place) : '') + '</div>' +
+        '<div class="lr-lift ' + liftCls + '">' + esc(liftText) + '</div>' +
+      '</div>' +
+      '<button class="icon-btn del" type="button" data-unlink="' + r.id + '">Remove</button>' +
+    '</div>';
+  }).join('');
+}
+function renderEventLinkResults(query){
+  var resultsBox = document.getElementById('edLinkResults');
+  if(!resultsBox) return;
+  var ev = state.events.find(function(x){ return x.id === state.detailEventId; });
+  if(!ev){ resultsBox.innerHTML = ''; return; }
+  var q = String(query || '').trim().toLowerCase();
+  if(!q){ resultsBox.innerHTML = ''; return; }
+  var linkedIds = {};
+  (ev.linkedRecordIds || []).forEach(function(id){ linkedIds[id] = true; });
+  var matches = state.records.filter(function(r){
+    if(linkedIds[r.id]) return false;
+    var hay = ((r.channel||'') + ' ' + (r.influencer||'') + ' ' + (r.place||'')).toLowerCase();
+    return hay.indexOf(q) > -1;
+  }).slice(0, 8);
+  resultsBox.innerHTML = matches.length ? matches.map(function(r){
+    return '<button class="icon-btn" type="button" data-linkrecord="' + r.id + '" style="display:block;width:100%;text-align:left;margin-top:6px">' +
+      esc(r.channel || '-') + (r.influencer ? ' · ' + esc(r.influencer) : '') + ' — ' + dateLabel(reviewDateFor(r)) +
+      (r.place ? ' · ' + esc(r.place) : '') +
+    '</button>';
+  }).join('') : '<p class="chart-note" style="padding:6px 0 0">No matching reviews</p>';
+}
+
 /* ---------------- event detail (chart + day ranking) ---------------- */
 function openEventDetail(id){
   var ev = state.events.find(function(x){ return x.id === id; });
   if(!ev) return;
   state.detailEventId = id;
   document.getElementById('edEventCaption').textContent = (ev.name || '(unnamed event)') + (ev.place ? ' · ' + ev.place : '');
+  var searchBox = document.getElementById('edLinkSearch');
+  if(searchBox) searchBox.value = '';
   renderEventDetail(ev);
   openModal('mdEventDetail');
 }
@@ -3367,11 +3472,23 @@ function renderEventDetail(ev){
     var v = top * i / 4;
     lines += '<div class="gridline" style="bottom:' + (i*25) + '%"><span>' + (i === 0 ? '0' : moneyShort(v)) + '</span></div>';
   }
+  var linked = linkedRecordsFor(ev);
+  var pinsByDate = {};
+  linked.forEach(function(r){
+    var rd = reviewDateFor(r);
+    if(!rd) return;
+    if(!pinsByDate[rd]) pinsByDate[rd] = [];
+    pinsByDate[rd].push(r);
+  });
+
   var bars = days.map(function(d){
     var amt = num(d.amount);
     var h = top ? (amt / top) * 100 : 0;
-    var title = weekdayShort(d.date) + ' ' + dateLabel(d.date) + ' - ' + money(amt);
+    var pins = pinsByDate[d.date] || [];
+    var title = weekdayShort(d.date) + ' ' + dateLabel(d.date) + ' - ' + money(amt) +
+      (pins.length ? ' - reviewed by ' + pins.map(function(r){ return r.channel || 'unknown'; }).join(', ') : '');
     return '<button class="bar-col' + (amt ? ' hit' : ' zero') + '" type="button" title="' + esc(title) + '" aria-label="' + esc(title) + '">' +
+      (pins.length ? '<span class="chart-pin"></span>' : '') +
       (amt ? '<span class="val" style="bottom:calc(' + h.toFixed(1) + '% + 5px)">' + fmt(amt) + '</span>' : '') +
       '<span class="bar" style="height:' + Math.max(h, amt ? 2 : 0.6).toFixed(1) + '%"></span>' +
     '</button>';
@@ -3382,6 +3499,10 @@ function renderEventDetail(ev){
       var p = dateParts(d.date);
       return '<div>' + (p ? weekdayShort(d.date) + '<br>' + p.d + ' ' + MON[p.m-1] : '-') + '</div>';
     }).join('') + '</div>';
+  if(linked.length){
+    document.getElementById('edChart').insertAdjacentHTML('beforeend',
+      '<p class="chart-note"><span class="chart-pin" style="position:static;display:inline-block;vertical-align:middle;margin-right:5px"></span>marks a day a linked review published</p>');
+  }
 
   var ranked = active.slice().sort(function(a,b){ return num(b.amount) - num(a.amount); });
   document.getElementById('edRank').innerHTML = ranked.length ? ranked.map(function(d, i){
@@ -3392,6 +3513,9 @@ function renderEventDetail(ev){
       '<span class="rank-amt">' + money(num(d.amount)) + '</span>' +
     '</div>';
   }).join('') : '<div class="empty"><p>No sales recorded yet.</p></div>';
+
+  renderEventLinkedReviews(ev);
+  renderEventLinkResults(document.getElementById('edLinkSearch') ? document.getElementById('edLinkSearch').value : '');
 }
 
 /* ---------------- event JSON import (QuackApprove export) ---------------- */
@@ -4300,6 +4424,31 @@ document.getElementById('btnEditFromDetail').addEventListener('click', function(
   var id = state.detailEventId;
   closeModal('mdEventDetail');
   if(id) openEvent(id);
+});
+document.getElementById('edLinkSearch').addEventListener('input', function(e){
+  renderEventLinkResults(e.target.value);
+});
+document.getElementById('edLinkResults').addEventListener('click', function(e){
+  var btn = e.target.closest('button[data-linkrecord]');
+  if(!btn) return;
+  var ev = state.events.find(function(x){ return x.id === state.detailEventId; });
+  if(!ev) return;
+  if(!Array.isArray(ev.linkedRecordIds)) ev.linkedRecordIds = [];
+  if(ev.linkedRecordIds.indexOf(btn.dataset.linkrecord) === -1) ev.linkedRecordIds.push(btn.dataset.linkrecord);
+  saveEventOne(ev);
+  document.getElementById('edLinkSearch').value = '';
+  renderEventDetail(ev);
+  toast('Review linked to this event');
+});
+document.getElementById('edLinked').addEventListener('click', function(e){
+  var btn = e.target.closest('button[data-unlink]');
+  if(!btn) return;
+  var ev = state.events.find(function(x){ return x.id === state.detailEventId; });
+  if(!ev) return;
+  ev.linkedRecordIds = (ev.linkedRecordIds || []).filter(function(id){ return id !== btn.dataset.unlink; });
+  saveEventOne(ev);
+  renderEventDetail(ev);
+  toast('Review unlinked');
 });
 
 document.getElementById('view-records').addEventListener('click', function(e){
