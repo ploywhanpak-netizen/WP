@@ -253,6 +253,7 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .status-badge.pending{background:#FFF3C4;color:#8A6300}
 .status-badge.rejected{background:#FBDEDC;color:#C0342A}
 select.status-badge{border:none;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;font-family:var(--mono)}
+td.num.unfilled{color:var(--red)}
 select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
 .chip.none{background:#EFF3F7;color:var(--muted)}
 .eng-btn{
@@ -2054,7 +2055,7 @@ function renderRecords(){
       '<td class="date" data-label="Publish Date">' + dateLabel(r.publishDate) + '</td>' +
       '<td class="sub" data-label="Remark">' + esc(r.remark || '-') + '</td>' +
       '<td class="num" data-label="Ratecard">' + money(num(r.ratecard)) + '</td>' +
-      '<td class="num" data-label="Barter">' + money(num(r.barter)) + '</td>' +
+      '<td class="num' + (num(r.barter) ? '' : ' unfilled') + '" data-label="Barter">' + money(num(r.barter)) + '</td>' +
       '<td class="num" data-label="Ads">' + money(num(r.ads)) + '</td>' +
       '<td class="num" data-label="Total Cost">' + money(cost(r)) + '</td>' +
       '<td class="num" data-label="Total Engagement"><button class="eng-btn" type="button" data-links="' + r.id + '">' + fmt(e) +
@@ -2238,7 +2239,7 @@ function renderAnalytics(){
       '<td class="date" data-label="Publish Date">' + dateLabel(r.publishDate) + '</td>' +
       '<td class="sub" data-label="Remark">' + esc(r.remark || '-') + '</td>' +
       '<td class="num" data-label="Ratecard">' + money(num(r.ratecard)) + '</td>' +
-      '<td class="num" data-label="Barter">' + money(num(r.barter)) + '</td>' +
+      '<td class="num' + (num(r.barter) ? '' : ' unfilled') + '" data-label="Barter">' + money(num(r.barter)) + '</td>' +
       '<td class="num" data-label="Ads">' + money(num(r.ads)) + '</td>' +
       '<td class="num" data-label="Total Cost">' + money(cost(r)) + '</td>' +
       '<td class="num" data-label="Total Engagement"><button class="eng-btn" type="button" data-links="' + r.id + '">' + fmt(e) +
