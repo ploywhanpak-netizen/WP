@@ -258,7 +258,7 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .status-badge.cancelled{background:#FBDEDC;color:#C0342A}
 #pt_checklist{display:flex;flex-direction:column}
 .checklist-row{
-  display:grid;grid-template-columns:18px minmax(0,108px) 10px minmax(0,108px) minmax(0,1fr) 26px;
+  display:grid;grid-template-columns:18px minmax(0,102px) 10px minmax(0,102px) minmax(0,1fr) 34px 26px;
   align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--line);
 }
 .checklist-row:last-child{border-bottom:0}
@@ -267,6 +267,7 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .cl-start,.cl-end{width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;padding:5px 3px;font-size:11px}
 .cl-sep{color:var(--muted);font-size:12px;text-align:center}
 .cl-text{width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px}
+.cl-days{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
 .cl-remove{width:100%;min-width:0;padding:4px 0}
 .pt-progress{display:flex;align-items:center;gap:8px;min-width:120px}
 .pt-progress-track{flex:1;height:7px;border-radius:999px;background:#EDF1F5;overflow:hidden}
@@ -425,6 +426,32 @@ select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
 .content-card-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .content-card-title{font-family:var(--display);font-size:14px;font-weight:600;color:var(--ink);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .content-card-campaign{align-self:flex-start;font-size:11px;color:var(--clay);background:var(--clay-soft);padding:2px 9px;border-radius:999px;font-weight:600}
+.cf-approved-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);padding:2px 0 4px;cursor:pointer}
+.cf-approved-row input{width:16px;height:16px;cursor:pointer}
+.content-card-badges{display:flex;gap:6px;flex-wrap:wrap}
+.content-card-approved{align-self:flex-start;font-size:10.5px;color:var(--teal);background:var(--teal-soft);padding:2px 8px;border-radius:999px;font-weight:600}
+.content-card-scheduled{font-size:11px;color:var(--muted)}
+.cal-pool{display:flex;flex-wrap:wrap;gap:10px;padding:16px;min-height:64px;transition:background .12s ease}
+.cal-pool.drag-over{background:var(--clay-soft)}
+.cal-empty-pool{padding:6px;color:var(--muted);font-size:12.5px}
+.cal-card{width:150px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.cal-card:active{cursor:grabbing}
+.cal-card-photo{height:72px;background:var(--clay-soft);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cal-card-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.cal-card-photo .content-card-noimg{font-size:10.5px}
+.cal-card-title{font-size:12px;font-weight:600;padding:6px 8px 8px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:14px 16px 0}
+.cal-weekdays span{padding:4px;text-align:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:6px 16px 16px}
+.cal-day{background:#fff;min-height:104px;padding:5px;display:flex;flex-direction:column;gap:4px;transition:background .12s ease}
+.cal-day.other-month{background:#FAFBFC}
+.cal-day.other-month .cal-day-num{color:var(--muted)}
+.cal-day.drag-over{background:var(--clay-soft)}
+.cal-day-num{font-family:var(--mono);font-size:11px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:999px}
+.cal-day.today .cal-day-num{background:var(--clay);color:#fff}
+.cal-day-cards{display:flex;flex-direction:column;gap:3px;overflow:auto}
+.cal-mini-card{font-size:10.5px;line-height:1.3;background:var(--clay-soft);color:var(--ink);border-radius:5px;padding:3px 6px;cursor:grab;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cal-mini-card:active{cursor:grabbing}
 .content-card-idea{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .content-card-caption{margin:0;font-size:12px;color:var(--muted);font-style:italic;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .billing-modal{max-width:760px}
@@ -660,7 +687,12 @@ body.gated .gate{display:flex}
   .xaxis{padding-left:46px}
   .bar-col .val{display:none}
   .modal-body{padding:14px}
-  .checklist-row{grid-template-columns:16px minmax(0,84px) 8px minmax(0,84px) minmax(0,1fr) 24px;gap:4px}
+  .checklist-row{grid-template-columns:16px minmax(0,78px) 8px minmax(0,78px) minmax(0,1fr) 28px 22px;gap:4px}
+  .cl-days{font-size:9.5px}
+  .cal-day{min-height:76px;padding:3px}
+  .cal-card{width:120px}
+  .cal-weekdays{font-size:8.5px;padding:10px 8px 0}
+  .cal-grid{margin:6px 8px 12px}
   .cl-start,.cl-end{padding:5px 2px;font-size:10px}
   .cl-text{padding:6px 5px}
   .eng-total .v{font-size:19px}
@@ -692,45 +724,46 @@ body.gated .gate{display:flex}
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Content</button>
         <div class="nav-items">
           <button class="nav-link" type="button" data-view="content"><span class="idx">01</span> Content Idea</button>
+          <button class="nav-link" type="button" data-view="calendar"><span class="idx">02</span> Calendar</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="influencer">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Influencer</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="records" aria-current="page"><span class="idx">02</span> Influencer Records</button>
-          <button class="nav-link" type="button" data-view="analytics"><span class="idx">03</span> Engagement KPI</button>
+          <button class="nav-link" type="button" data-view="records" aria-current="page"><span class="idx">03</span> Influencer Records</button>
+          <button class="nav-link" type="button" data-view="analytics"><span class="idx">04</span> Engagement KPI</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="target-budget">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Target &amp; Budget</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="targets"><span class="idx">04</span> Target</button>
-          <button class="nav-link" type="button" data-view="budget"><span class="idx">05</span> Budget</button>
+          <button class="nav-link" type="button" data-view="targets"><span class="idx">05</span> Target</button>
+          <button class="nav-link" type="button" data-view="budget"><span class="idx">06</span> Budget</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="project-requests">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Requests</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="billing"><span class="idx">06</span> Projects Requests</button>
-          <button class="nav-link" type="button" data-view="database"><span class="idx">07</span> ฐานข้อมูล</button>
+          <button class="nav-link" type="button" data-view="billing"><span class="idx">07</span> Projects Requests</button>
+          <button class="nav-link" type="button" data-view="database"><span class="idx">08</span> ฐานข้อมูล</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="event">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Event</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="events"><span class="idx">08</span> Events</button>
+          <button class="nav-link" type="button" data-view="events"><span class="idx">09</span> Events</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="project-tracker">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Tracker</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="projtasks"><span class="idx">09</span> Project Tracker</button>
+          <button class="nav-link" type="button" data-view="projtasks"><span class="idx">10</span> Project Tracker</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="settings">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Settings</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="settings"><span class="idx">10</span> Settings</button>
+          <button class="nav-link" type="button" data-view="settings"><span class="idx">11</span> Settings</button>
         </div>
       </div>
     </nav>
@@ -771,6 +804,36 @@ body.gated .gate{display:flex}
             <div class="content-grid" id="cBody"></div>
           </div>
           <div id="cEmpty"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTENT CALENDAR ============ -->
+    <section class="view" id="view-calendar">
+      <header class="topbar">
+        <h2>Content Calendar</h2>
+        <p class="sub">Drag an approved content idea onto a date to schedule when it goes live.</p>
+        <div class="filters">
+          <button class="btn" type="button" id="calPrevMonth" aria-label="Previous month">&lsaquo;</button>
+          <span id="calMonthLabel" style="font-family:var(--display);font-weight:700;font-size:15px;min-width:140px;text-align:center"></span>
+          <button class="btn" type="button" id="calNextMonth" aria-label="Next month">&rsaquo;</button>
+          <button class="btn" type="button" id="calToday">Today</button>
+          <div class="spacer"></div>
+        </div>
+      </header>
+      <div class="content">
+        <div class="card">
+          <div class="card-head">
+            <h3>Unscheduled - Approved</h3>
+            <span class="hint" id="calPoolCount"></span>
+          </div>
+          <div class="cal-pool" id="calPool"></div>
+        </div>
+        <div class="card">
+          <div class="cal-weekdays">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
         </div>
       </div>
     </section>
@@ -1426,6 +1489,10 @@ body.gated .gate{display:flex}
         </div>
         <button class="btn ghost" type="button" id="btnRemovePhoto" style="display:none;align-self:flex-start">Remove photo</button>
       </div>
+      <label class="cf-approved-row">
+        <input type="checkbox" id="cf_approved" />
+        Approved - show in Content Calendar for scheduling
+      </label>
       <div class="grid2">
         <div class="f"><label for="cf_title">Title</label><input id="cf_title" placeholder="e.g. Rainy day coffee ritual" /></div>
         <div class="f"><label for="cf_campaign">Campaign</label><input id="cf_campaign" placeholder="e.g. July - Bloom Cafe" /></div>
@@ -1789,6 +1856,8 @@ function contentDocBody(r){
   var out = {};
   contentFields().forEach(function(f){ out[f.key] = r[f.key] || ''; });
   out.photoRef = r.photoRef || '';
+  out.approved = !!r.approved;
+  out.scheduledDate = r.scheduledDate || '';
   out.updatedAt = Date.now();
   out.updatedBy = whoami();
   return out;
@@ -2208,6 +2277,7 @@ var state = {
   contentSyncOff: false,
   contentPhotoDraft: '',
   cf: { q:'' },
+  calMonth: { y:now.getFullYear(), m:now.getMonth() + 1 },
   projTasks: [],
   projTasksSyncOff: false,
   pf: { q:'' },
@@ -3669,11 +3739,16 @@ function renderContent(){
     var campaign = r.campaign ? '<span class="content-card-campaign">' + esc(r.campaign) + '</span>' : '';
     var idea = truncateText(r.idea, 90);
     var caption = truncateText(r.caption, 90);
+    var badges = '<div class="content-card-badges">' +
+      (r.approved ? '<span class="content-card-approved">Approved</span>' : '') +
+      (r.scheduledDate ? '<span class="content-card-scheduled">Scheduled ' + dateLabel(r.scheduledDate) + '</span>' : '') +
+    '</div>';
     return '<div class="content-card" data-content-row="' + esc(r.id) + '">' +
       '<div class="content-card-photo">' + photo + '</div>' +
       '<div class="content-card-body">' +
         '<h4 class="content-card-title">' + esc(r.title || '(untitled)') + '</h4>' +
         campaign +
+        ((r.approved || r.scheduledDate) ? badges : '') +
         (idea ? '<p class="content-card-idea">' + esc(idea) + '</p>' : '') +
         (caption ? '<p class="content-card-caption">"' + esc(caption) + '"</p>' : '') +
       '</div>' +
@@ -3713,6 +3788,7 @@ function openContentIdea(id){
   document.getElementById('cf_script').value = r ? (r.script || '') : '';
   document.getElementById('cf_storyboard').value = r ? (r.storyboard || '') : '';
   document.getElementById('cf_caption').value = r ? (r.caption || '') : '';
+  document.getElementById('cf_approved').checked = !!(r && r.approved);
   state.contentPhotoDraft = r ? (r.photoRef || '') : '';
   renderContentPhoto();
   document.getElementById('btnDeleteContent').style.display = r ? '' : 'none';
@@ -3726,6 +3802,7 @@ function saveContentIdea(){
     script: document.getElementById('cf_script').value.trim(),
     storyboard: document.getElementById('cf_storyboard').value.trim(),
     caption: document.getElementById('cf_caption').value.trim(),
+    approved: document.getElementById('cf_approved').checked,
     photoRef: state.contentPhotoDraft || ''
   };
   var target;
@@ -3752,6 +3829,81 @@ function deleteContentIdea(id){
   closeModal('mdContent');
   renderContent();
   toast('Content idea deleted');
+}
+
+
+/* ---------------- content calendar ---------------- */
+function calMonthDateIso(y, m, d){
+  return y + '-' + pad(m) + '-' + pad(d);
+}
+function calCardHtml(r, mini){
+  if(mini){
+    return '<div class="cal-mini-card" draggable="true" data-cal-drag="' + esc(r.id) + '" title="' + esc(r.title || '(untitled)') + '">' + esc(r.title || '(untitled)') + '</div>';
+  }
+  var photo = r.photoRef
+    ? '<img src="' + esc(r.photoRef) + '" alt="" />'
+    : '<span class="content-card-noimg">No photo</span>';
+  return '<div class="cal-card" draggable="true" data-cal-drag="' + esc(r.id) + '">' +
+    '<div class="cal-card-photo">' + photo + '</div>' +
+    '<div class="cal-card-title">' + esc(r.title || '(untitled)') + '</div>' +
+  '</div>';
+}
+function renderCalendar(){
+  var y = state.calMonth.y, m = state.calMonth.m;
+  var monthStart = new Date(y, m - 1, 1);
+  document.getElementById('calMonthLabel').textContent = MONTHS[m - 1] + ' ' + y;
+
+  var approved = (state.content || []).filter(function(r){ return r.approved; });
+  var pool = approved.filter(function(r){ return !r.scheduledDate; });
+  document.getElementById('calPoolCount').textContent = pool.length + ' unscheduled';
+  document.getElementById('calPool').innerHTML = pool.length
+    ? pool.map(function(r){ return calCardHtml(r, false); }).join('')
+    : '<div class="cal-empty-pool">No approved, unscheduled content ideas. Mark a content idea as "Approved" to see it here.</div>';
+
+  var byDate = {};
+  approved.forEach(function(r){
+    if(r.scheduledDate){
+      (byDate[r.scheduledDate] = byDate[r.scheduledDate] || []).push(r);
+    }
+  });
+
+  var firstWeekday = monthStart.getDay();
+  var daysInMonth = new Date(y, m, 0).getDate();
+  var daysInPrevMonth = new Date(y, m - 1, 0).getDate();
+  var totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  var todayIso = calMonthDateIso(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+  var cells = [];
+  for(var i = 0; i < totalCells; i++){
+    var dayNum, cellY = y, cellM = m, otherMonth = false;
+    if(i < firstWeekday){
+      dayNum = daysInPrevMonth - firstWeekday + 1 + i;
+      cellM = m - 1; if(cellM < 1){ cellM = 12; cellY = y - 1; }
+      otherMonth = true;
+    } else if(i >= firstWeekday + daysInMonth){
+      dayNum = i - (firstWeekday + daysInMonth) + 1;
+      cellM = m + 1; if(cellM > 12){ cellM = 1; cellY = y + 1; }
+      otherMonth = true;
+    } else {
+      dayNum = i - firstWeekday + 1;
+    }
+    var iso = calMonthDateIso(cellY, cellM, dayNum);
+    var items = byDate[iso] || [];
+    cells.push(
+      '<div class="cal-day' + (otherMonth ? ' other-month' : '') + (iso === todayIso ? ' today' : '') + '" data-cal-day="' + iso + '">' +
+        '<span class="cal-day-num">' + dayNum + '</span>' +
+        '<div class="cal-day-cards">' + items.map(function(r){ return calCardHtml(r, true); }).join('') + '</div>' +
+      '</div>'
+    );
+  }
+  document.getElementById('calGrid').innerHTML = cells.join('');
+}
+function scheduleContentIdea(id, dateIso){
+  var r = (state.content || []).find(function(x){ return x.id === id; });
+  if(!r) return;
+  r.scheduledDate = dateIso || '';
+  saveContentOne(r);
+  renderCalendar();
 }
 
 /* ---------------- project tracker ---------------- */
@@ -3822,6 +3974,14 @@ function projTaskProgressHtml(r){
     '<span class="pt-progress-pct">' + pct + '%</span>' +
   '</div>';
 }
+function checklistDaysLabel(start, end){
+  if(!start || !end) return '';
+  var a = new Date(start), b = new Date(end);
+  if(isNaN(a.getTime()) || isNaN(b.getTime())) return '';
+  var days = Math.round((b.getTime() - a.getTime()) / 86400000) + 1;
+  if(days <= 0) return '';
+  return days + 'd';
+}
 function checklistRowHtml(item){
   item = item || {};
   var id = item.id || uid();
@@ -3831,6 +3991,7 @@ function checklistRowHtml(item){
     '<span class="cl-sep">-</span>' +
     '<input type="date" class="cl-end" value="' + esc(item.end || '') + '" aria-label="End date" />' +
     '<input type="text" class="cl-text" placeholder="What needs to happen" value="' + esc(item.text || '') + '" />' +
+    '<span class="cl-days" title="Days used">' + esc(checklistDaysLabel(item.start, item.end)) + '</span>' +
     '<button type="button" class="icon-btn cl-remove" aria-label="Remove item">&times;</button>' +
   '</div>';
 }
@@ -4545,6 +4706,7 @@ function render(){
   else if(state.view === 'settings') renderSettings();
   else if(state.view === 'events') renderEvents();
   else if(state.view === 'content') renderContent();
+  else if(state.view === 'calendar') renderCalendar();
   else if(state.view === 'projtasks') renderProjTasks();
   else renderTargets();
 }
@@ -4792,7 +4954,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav-group'), function(g
     });
   }
 });
-var VALID_VIEWS = ['content','records','analytics','targets','budget','billing','database','settings','events','projtasks'];
+var VALID_VIEWS = ['content','calendar','records','analytics','targets','budget','billing','database','settings','events','projtasks'];
 function activateView(view, opts){
   opts = opts || {};
   var btn = document.querySelector('.nav .nav-link[data-view="' + view + '"]');
@@ -4808,6 +4970,7 @@ function activateView(view, opts){
   document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
   document.getElementById('view-events').classList.toggle('active', state.view === 'events');
   document.getElementById('view-content').classList.toggle('active', state.view === 'content');
+  document.getElementById('view-calendar').classList.toggle('active', state.view === 'calendar');
   document.getElementById('view-projtasks').classList.toggle('active', state.view === 'projtasks');
   render();
   if(!opts.skipHash){
@@ -5343,6 +5506,58 @@ document.getElementById('btnExpandPhoto').addEventListener('click', function(e){
   openModal('mdPhotoView');
 });
 
+document.getElementById('calPrevMonth').addEventListener('click', function(){
+  state.calMonth.m -= 1;
+  if(state.calMonth.m < 1){ state.calMonth.m = 12; state.calMonth.y -= 1; }
+  renderCalendar();
+});
+document.getElementById('calNextMonth').addEventListener('click', function(){
+  state.calMonth.m += 1;
+  if(state.calMonth.m > 12){ state.calMonth.m = 1; state.calMonth.y += 1; }
+  renderCalendar();
+});
+document.getElementById('calToday').addEventListener('click', function(){
+  state.calMonth = { y: now.getFullYear(), m: now.getMonth() + 1 };
+  renderCalendar();
+});
+document.addEventListener('dragstart', function(e){
+  var card = e.target.closest('[data-cal-drag]');
+  if(!card) return;
+  e.dataTransfer.setData('text/plain', card.dataset.calDrag);
+  e.dataTransfer.effectAllowed = 'move';
+});
+document.getElementById('calPool').addEventListener('dragover', function(e){
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+});
+document.getElementById('calPool').addEventListener('dragleave', function(e){
+  e.currentTarget.classList.remove('drag-over');
+});
+document.getElementById('calPool').addEventListener('drop', function(e){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  var id = e.dataTransfer.getData('text/plain');
+  if(id) scheduleContentIdea(id, '');
+});
+document.getElementById('calGrid').addEventListener('dragover', function(e){
+  var day = e.target.closest('[data-cal-day]');
+  if(!day) return;
+  e.preventDefault();
+  day.classList.add('drag-over');
+});
+document.getElementById('calGrid').addEventListener('dragleave', function(e){
+  var day = e.target.closest('[data-cal-day]');
+  if(day) day.classList.remove('drag-over');
+});
+document.getElementById('calGrid').addEventListener('drop', function(e){
+  var day = e.target.closest('[data-cal-day]');
+  if(!day) return;
+  e.preventDefault();
+  day.classList.remove('drag-over');
+  var id = e.dataTransfer.getData('text/plain');
+  if(id) scheduleContentIdea(id, day.dataset.calDay);
+});
+
 document.getElementById('ptSearch').addEventListener('input', function(e){
   state.pf.q = e.target.value;
   renderProjTasks();
@@ -5374,6 +5589,12 @@ document.getElementById('btnAddChecklistItem').addEventListener('click', functio
 document.getElementById('pt_checklist').addEventListener('change', function(e){
   if(e.target.classList.contains('cl-done')){
     e.target.closest('.checklist-row').classList.toggle('done', e.target.checked);
+  }
+  if(e.target.classList.contains('cl-start') || e.target.classList.contains('cl-end')){
+    var row = e.target.closest('.checklist-row');
+    var start = row.querySelector('.cl-start').value;
+    var end = row.querySelector('.cl-end').value;
+    row.querySelector('.cl-days').textContent = checklistDaysLabel(start, end);
   }
 });
 document.getElementById('pt_checklist').addEventListener('click', function(e){
