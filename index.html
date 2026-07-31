@@ -631,37 +631,43 @@ body.gated .gate{display:flex}
       <p>Campaign cost &amp; performance</p>
     </div>
     <nav class="nav">
+      <div class="nav-group" data-nav-group="content">
+        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Content</button>
+        <div class="nav-items">
+          <button class="nav-link" type="button" data-view="content"><span class="idx">01</span> Content Idea</button>
+        </div>
+      </div>
       <div class="nav-group" data-nav-group="influencer">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Influencer</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="records" aria-current="page"><span class="idx">01</span> Influencer Records</button>
-          <button class="nav-link" type="button" data-view="analytics"><span class="idx">02</span> Engagement KPI</button>
+          <button class="nav-link" type="button" data-view="records" aria-current="page"><span class="idx">02</span> Influencer Records</button>
+          <button class="nav-link" type="button" data-view="analytics"><span class="idx">03</span> Engagement KPI</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="target-budget">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Target &amp; Budget</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="targets"><span class="idx">03</span> Target</button>
-          <button class="nav-link" type="button" data-view="budget"><span class="idx">04</span> Budget</button>
+          <button class="nav-link" type="button" data-view="targets"><span class="idx">04</span> Target</button>
+          <button class="nav-link" type="button" data-view="budget"><span class="idx">05</span> Budget</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="project-requests">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Requests</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="billing"><span class="idx">05</span> Projects Requests</button>
-          <button class="nav-link" type="button" data-view="database"><span class="idx">06</span> ฐานข้อมูล</button>
+          <button class="nav-link" type="button" data-view="billing"><span class="idx">06</span> Projects Requests</button>
+          <button class="nav-link" type="button" data-view="database"><span class="idx">07</span> ฐานข้อมูล</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="event">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Event</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="events"><span class="idx">07</span> Events</button>
+          <button class="nav-link" type="button" data-view="events"><span class="idx">08</span> Events</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="settings">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Settings</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="settings"><span class="idx">08</span> Settings</button>
+          <button class="nav-link" type="button" data-view="settings"><span class="idx">09</span> Settings</button>
         </div>
       </div>
     </nav>
@@ -678,6 +684,44 @@ body.gated .gate{display:flex}
   </aside>
 
   <div class="main">
+    <!-- ============ CONTENT IDEA ============ -->
+    <section class="view" id="view-content">
+      <header class="topbar">
+        <h2>Content Idea</h2>
+        <p class="sub">Jot down content ideas - title, idea, campaign, script, storyboard and caption. Nothing is required.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="cSearch">Search</label>
+            <input class="search" id="cSearch" type="search" placeholder="Title, idea, campaign, script, storyboard, caption" />
+          </div>
+          <div class="spacer"></div>
+          <button class="btn primary" type="button" id="btnAddContent">+ Add content idea</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="card">
+          <div class="card-head">
+            <h3>Content Ideas</h3>
+            <span class="hint" id="cCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="cTable">
+              <thead>
+                <tr>
+                  <th data-sort="title">Title</th>
+                  <th data-sort="campaign">Campaign</th>
+                  <th>Idea</th>
+                  <th>Caption</th>
+                </tr>
+              </thead>
+              <tbody id="cBody"></tbody>
+            </table>
+          </div>
+          <div id="cEmpty"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ RECORDS ============ -->
     <section class="view active" id="view-records">
       <header class="topbar">
@@ -1253,6 +1297,34 @@ body.gated .gate{display:flex}
   </div>
 </div>
 
+<!-- ============ CONTENT IDEA MODAL ============ -->
+<div class="backdrop" id="mdContent">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mdContentTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="mdContentTitle">Content idea</h3>
+        <p>Fill in whatever you have - nothing is required.</p>
+      </div>
+      <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="f"><label for="cf_title">Title</label><input id="cf_title" placeholder="e.g. Rainy day coffee ritual" /></div>
+        <div class="f"><label for="cf_campaign">Campaign</label><input id="cf_campaign" placeholder="e.g. July - Bloom Cafe" /></div>
+      </div>
+      <div class="f"><label for="cf_idea">Idea</label><textarea id="cf_idea" placeholder="What's the concept?" rows="3"></textarea></div>
+      <div class="f"><label for="cf_script">Script</label><textarea id="cf_script" placeholder="Line by line script" rows="4"></textarea></div>
+      <div class="f"><label for="cf_storyboard">Storyboard</label><textarea id="cf_storyboard" placeholder="Shot by shot notes" rows="4"></textarea></div>
+      <div class="f"><label for="cf_caption">Caption</label><textarea id="cf_caption" placeholder="Caption for the post" rows="3"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" type="button" id="btnDeleteContent" style="margin-right:auto">Delete</button>
+      <button class="btn ghost" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="button" id="btnSaveContent">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="dropzone" id="dropzone"><div class="dropzone-inner">Drop a CSV file to import</div></div>
 <div class="toast" id="toast"></div>
 
@@ -1280,6 +1352,7 @@ var FIREBASE_BILLING_COLLECTION = 'approvalRequests';
 var FIREBASE_EVENTS_COLLECTION = 'boothEvents';
 var FIREBASE_SETTINGS_COLLECTION = 'settings';
 var FIREBASE_SETTINGS_DOC = 'main';
+var FIREBASE_CONTENT_COLLECTION = 'contentIdeas';
 /* Monthly engagement KPI is user-editable now - see engagementTarget() and state.settings.engagementTarget */
 var SIGN_IN = 'none';              /* no login screen; Firestore rules control who can read/write */
 var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
@@ -1290,6 +1363,7 @@ var TARGET_KEY = 'influencer:targets:v1';
 var BILLING_KEY = 'whanpak:approval-requests:v1';
 var SETTINGS_KEY = 'whanpak:builder-settings:v1';
 var EVENTS_KEY = 'whanpak:booth-events:v1';
+var CONTENT_KEY = 'whanpak:content-ideas:v1';
 var canStore = typeof window.storage !== 'undefined' && window.storage;
 
 function loadRecords(){
@@ -1371,6 +1445,22 @@ function loadBilling(){
   dedupeBilling(false);
   migrateBillingSignature();
   return Promise.resolve();
+}
+function loadContent(){
+  if(canStore){
+    return window.storage.get(CONTENT_KEY).then(function(r){
+      if(!r || !r.value) return;
+      try { state.content = JSON.parse(r.value) || []; } catch(e){ state.content = []; }
+    }).catch(function(){});
+  }
+  try { state.content = JSON.parse(localStorage.getItem(CONTENT_KEY) || '[]') || []; } catch(e){ state.content = []; }
+  return Promise.resolve();
+}
+function persistContentLocal(){
+  try {
+    if(canStore) return window.storage.set(CONTENT_KEY, JSON.stringify(state.content || [])).catch(function(){});
+    localStorage.setItem(CONTENT_KEY, JSON.stringify(state.content || []));
+  } catch(e){}
 }
 function persistBillingLocal(){
   try {
@@ -1500,6 +1590,33 @@ function removeMany(ids){
   var batch = fb.fs.writeBatch(fb.db);
   ids.forEach(function(id){ batch.delete(fb.fs.doc(fb.db, FIREBASE_COLLECTION, id)); });
   batch.commit().catch(syncFail);
+}
+function contentFields(){
+  return [
+    { key:'title', label:'Title' },
+    { key:'idea', label:'Idea' },
+    { key:'campaign', label:'Campaign' },
+    { key:'script', label:'Script' },
+    { key:'storyboard', label:'Storyboard' },
+    { key:'caption', label:'Caption' }
+  ];
+}
+function contentDocBody(r){
+  var out = {};
+  contentFields().forEach(function(f){ out[f.key] = r[f.key] || ''; });
+  out.updatedAt = Date.now();
+  out.updatedBy = whoami();
+  return out;
+}
+function saveContentOne(r){
+  persistContentLocal();
+  if(!live() || state.contentSyncOff) return;
+  fb.fs.setDoc(fb.fs.doc(fb.db, FIREBASE_CONTENT_COLLECTION, r.id), contentDocBody(r)).catch(syncFail);
+}
+function removeContentOne(id){
+  persistContentLocal();
+  if(!live() || state.contentSyncOff) return;
+  fb.fs.deleteDoc(fb.fs.doc(fb.db, FIREBASE_CONTENT_COLLECTION, id)).catch(syncFail);
 }
 function billingDocBody(r){
   var out = {};
@@ -1677,6 +1794,23 @@ function subscribeBilling(){
     setStoreState(false, 'Billing sync error - ' + (err.code || 'check your Firestore rules'));
   });
 }
+function subscribeContent(){
+  if(fb.unsubContent) return;
+  fb.unsubContent = fb.fs.onSnapshot(fb.fs.collection(fb.db, FIREBASE_CONTENT_COLLECTION), function(snap){
+    var list = [];
+    snap.forEach(function(d){
+      var v = d.data() || {};
+      v.id = d.id;
+      list.push(v);
+    });
+    state.content = list;
+    persistContentLocal();
+    if(state.view === 'content') renderContent();
+  }, function(err){
+    state.contentSyncOff = true;
+    setStoreState(false, 'Content sync error - ' + (err.code || 'check your Firestore rules'));
+  });
+}
 
 function connectTeam(){
   setStoreState(true, 'Connecting to your team ledger...');
@@ -1685,7 +1819,7 @@ function connectTeam(){
     import(SDK + 'firebase-firestore.js')
   ]).then(function(m){
     var app = m[0].initializeApp(FIREBASE_CONFIG);
-    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null, unsubEvents:null, unsubSettings:null };
+    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null, unsubEvents:null, unsubSettings:null, unsubContent:null };
     renderAuthBox();
     updateGate();
     subscribe();
@@ -1693,6 +1827,7 @@ function connectTeam(){
     subscribeBilling();
     subscribeEvents();
     subscribeSettings();
+    subscribeContent();
   }).catch(function(e){
     fb = null;
     document.body.classList.remove('gated');
@@ -1745,6 +1880,10 @@ function esc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
     return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
   });
+}
+function truncateText(v, max){
+  v = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+  return v.length > max ? v.slice(0, max - 1) + '…' : v;
 }
 function num(v){
   var cleaned = String(v == null ? '' : v).replace(/,/g, '').replace(/[^\d.-]/g, '');
@@ -1801,12 +1940,15 @@ var state = {
   records: [],
   billing: [],
   billingSyncOff: false,
+  content: [],
+  contentSyncOff: false,
+  cf: { q:'' },
   view: 'records',
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
   tf: { year:String(now.getFullYear()) },
   ef: { year:String(now.getFullYear()), month:'all' },
-  sort: { records:null, analytics:null, targets:null, budget:null, billing:null, database:null, settings:null },
+  sort: { records:null, analytics:null, targets:null, budget:null, billing:null, database:null, settings:null, content:null },
   targets: {},
   settings: defaultSettings(),
   editTarget: null,
@@ -3228,6 +3370,86 @@ function importBillingCSV(text){
   toast('Imported ' + incoming.length + ' billing request' + (incoming.length === 1 ? '' : 's') + (skipped ? ' · skipped ' + skipped + ' duplicate' + (skipped === 1 ? '' : 's') : ''));
 }
 
+/* ---------------- content idea ---------------- */
+function filteredContent(){
+  var q = String(state.cf.q || '').trim().toLowerCase();
+  var list = (state.content || []).slice();
+  if(q){
+    list = list.filter(function(r){
+      return contentFields().some(function(f){ return String(r[f.key] || '').toLowerCase().indexOf(q) > -1; });
+    });
+  }
+  return list;
+}
+function sortContentValue(r, key){ return r[key] || ''; }
+function renderContent(){
+  var rows = sortRows(filteredContent(), state.sort.content, sortContentValue);
+  document.getElementById('cSearch').value = state.cf.q || '';
+  markSort(document.getElementById('cTable'), state.sort.content);
+  document.getElementById('cCount').textContent = rows.length + ' shown of ' + (state.content || []).length + ' total';
+  if(!rows.length){
+    document.getElementById('cBody').innerHTML = '';
+    document.getElementById('cEmpty').innerHTML = '<div class="empty"><h4>No content ideas yet</h4><p>Add a title, idea, campaign, script, storyboard or caption - whatever you have.</p><button class="btn primary" type="button" data-act="addcontent">+ Add content idea</button></div>';
+    return;
+  }
+  document.getElementById('cEmpty').innerHTML = '';
+  document.getElementById('cBody').innerHTML = rows.map(function(r){
+    return '<tr data-content-row="' + esc(r.id) + '">' +
+      '<td class="name" data-label="Title">' + esc(r.title || '(untitled)') + '</td>' +
+      '<td class="sub" data-label="Campaign">' + esc(r.campaign || '-') + '</td>' +
+      '<td class="sub" data-label="Idea">' + esc(truncateText(r.idea, 60) || '-') + '</td>' +
+      '<td class="sub" data-label="Caption">' + esc(truncateText(r.caption, 60) || '-') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+function openContentIdea(id){
+  state.editingContentId = id || null;
+  var r = id ? (state.content || []).find(function(x){ return x.id === id; }) : null;
+  document.getElementById('mdContentTitle').textContent = r ? 'Edit content idea' : 'Add content idea';
+  document.getElementById('cf_title').value = r ? (r.title || '') : '';
+  document.getElementById('cf_campaign').value = r ? (r.campaign || '') : '';
+  document.getElementById('cf_idea').value = r ? (r.idea || '') : '';
+  document.getElementById('cf_script').value = r ? (r.script || '') : '';
+  document.getElementById('cf_storyboard').value = r ? (r.storyboard || '') : '';
+  document.getElementById('cf_caption').value = r ? (r.caption || '') : '';
+  document.getElementById('btnDeleteContent').style.display = r ? '' : 'none';
+  openModal('mdContent');
+}
+function saveContentIdea(){
+  var data = {
+    title: document.getElementById('cf_title').value.trim(),
+    campaign: document.getElementById('cf_campaign').value.trim(),
+    idea: document.getElementById('cf_idea').value.trim(),
+    script: document.getElementById('cf_script').value.trim(),
+    storyboard: document.getElementById('cf_storyboard').value.trim(),
+    caption: document.getElementById('cf_caption').value.trim()
+  };
+  var target;
+  if(state.editingContentId){
+    target = (state.content || []).find(function(x){ return x.id === state.editingContentId; });
+    Object.keys(data).forEach(function(k){ target[k] = data[k]; });
+  } else {
+    data.id = uid();
+    state.content = state.content || [];
+    state.content.push(data);
+    target = data;
+  }
+  saveContentOne(target);
+  closeModal('mdContent');
+  renderContent();
+  toast('Content idea saved');
+}
+function deleteContentIdea(id){
+  id = id || state.editingContentId;
+  if(!id) return;
+  if(!confirm('Delete this content idea?')) return;
+  state.content = (state.content || []).filter(function(r){ return r.id !== id; });
+  removeContentOne(id);
+  closeModal('mdContent');
+  renderContent();
+  toast('Content idea deleted');
+}
+
 /* ---------------- events view ---------------- */
 function eventSalesFlat(){
   var out = [];
@@ -3801,6 +4023,7 @@ function render(){
   else if(state.view === 'database') renderDatabase();
   else if(state.view === 'settings') renderSettings();
   else if(state.view === 'events') renderEvents();
+  else if(state.view === 'content') renderContent();
   else renderTargets();
 }
 
@@ -4059,6 +4282,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), functi
     document.getElementById('view-database').classList.toggle('active', state.view === 'database');
     document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
     document.getElementById('view-events').classList.toggle('active', state.view === 'events');
+    document.getElementById('view-content').classList.toggle('active', state.view === 'content');
     render();
   });
 });
@@ -4535,6 +4759,27 @@ document.getElementById('view-events').addEventListener('click', function(e){
   else if(t.dataset.delevent) deleteEvent(t.dataset.delevent);
   else if(t.dataset.act === 'addevent') openEvent(null);
 });
+document.getElementById('btnAddContent').addEventListener('click', function(){ openContentIdea(null); });
+document.getElementById('cSearch').addEventListener('input', function(e){
+  state.cf.q = e.target.value;
+  renderContent();
+});
+document.getElementById('cTable').addEventListener('click', function(e){
+  var th = e.target.closest('th[data-sort]');
+  if(th){
+    setSort('content', th.dataset.sort);
+    renderContent();
+    return;
+  }
+  var row = e.target.closest('[data-content-row]');
+  if(row) openContentIdea(row.dataset.contentRow);
+});
+document.getElementById('view-content').addEventListener('click', function(e){
+  var t = e.target.closest('[data-act="addcontent"]');
+  if(t) openContentIdea(null);
+});
+document.getElementById('btnSaveContent').addEventListener('click', saveContentIdea);
+document.getElementById('btnDeleteContent').addEventListener('click', function(){ deleteContentIdea(); });
 document.getElementById('btnEditFromDetail').addEventListener('click', function(){
   var id = state.detailEventId;
   closeModal('mdEventDetail');
@@ -4793,7 +5038,7 @@ function recovered(){
 /* ---------------- boot ---------------- */
 function bootLocal(){
   if(!canStore) setStoreState(false, 'Saving is off here - records last for this session');
-  return Promise.all([loadRecords(), loadTargets(), loadBilling(), loadSettings(), loadEvents()]).then(function(all){
+  return Promise.all([loadRecords(), loadTargets(), loadBilling(), loadSettings(), loadEvents(), loadContent()]).then(function(all){
     var data = all[0];
     var seeded = data && data.seeded;
     state.records = data && Array.isArray(data.records) ? data.records : [];
@@ -4810,7 +5055,7 @@ function bootLocal(){
 }
 
 if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
-  Promise.all([loadTargets(), loadBilling(), loadSettings(), loadEvents()]).then(render);
+  Promise.all([loadTargets(), loadBilling(), loadSettings(), loadEvents(), loadContent()]).then(render);
   connectTeam();
 } else {
   bootLocal();
