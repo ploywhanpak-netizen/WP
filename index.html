@@ -2466,13 +2466,13 @@ function billingApproved(r){ return String(r && r.signature || '').trim() === '�
 function budgetDetail(items){
   if(!items.length) return '<div class="budget-empty">No Project Requests dated in this month.</div>';
   return '<div class="detail-list">' + items.map(function(r){
-    var approved = billingApproved(r);
     return '<div class="budget-item">' +
       '<strong>' + esc(r.prNo || '-') + '</strong>' +
       '<span>' + esc(r.supplier || '-') + '</span>' +
+      '<span>' + esc(r.description || '-') + '</span>' +
+      '<span>' + esc(r.venuePlacement || '-') + '</span>' +
       '<span>' + esc(r.projectDuration || '-') + '</span>' +
       '<span>Amount ' + money(num(r.amount)) + '</span>' +
-      '<span class="chip ' + (approved ? 'good' : 'mid') + '">' + esc(r.signature || 'รออนุมัติ') + '</span>' +
     '</div>';
   }).join('') + '</div>';
 }
