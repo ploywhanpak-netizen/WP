@@ -2464,8 +2464,9 @@ function parseProjectDurationMonth(str){
 }
 function billingApproved(r){ return String(r && r.signature || '').trim() === 'เซ็นแล้ว'; }
 function budgetDetail(items){
-  if(!items.length) return '<div class="budget-empty">No Project Requests dated in this month.</div>';
-  return '<div class="detail-list">' + items.map(function(r){
+  var approvedItems = items.filter(billingApproved);
+  if(!approvedItems.length) return '<div class="budget-empty">No signed (เซ็นแล้ว) Project Requests dated in this month.</div>';
+  return '<div class="detail-list">' + approvedItems.map(function(r){
     return '<div class="budget-item">' +
       '<strong>' + esc(r.prNo || '-') + '</strong>' +
       '<span>' + esc(r.supplier || '-') + '</span>' +
