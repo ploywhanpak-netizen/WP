@@ -252,6 +252,10 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .status-badge.approved{background:#DDF3E4;color:#1E8E4A}
 .status-badge.pending{background:#FFF3C4;color:#8A6300}
 .status-badge.rejected{background:#FBDEDC;color:#C0342A}
+.status-badge.progress{background:#FFF3C4;color:#8A6300}
+.status-badge.done{background:#DDF3E4;color:#1E8E4A}
+.status-badge.hold{background:#EFF3F7;color:var(--muted)}
+.status-badge.cancelled{background:#FBDEDC;color:#C0342A}
 select.status-badge{border:none;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;font-family:var(--mono)}
 td.num.unfilled{color:var(--red)}
 select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
@@ -377,6 +381,23 @@ select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
 .photo-paste:focus{border-color:var(--focus);background:#fff}
 .photo-paste.has-photo{padding:8px;cursor:default}
 .photo-paste img{max-width:100%;max-height:220px;border-radius:6px;display:block}
+.photo-paste-lg{min-height:280px}
+.photo-paste-lg img{max-height:440px}
+.photo-expand-btn{
+  position:absolute;top:12px;right:12px;background:rgba(18,33,47,.72);color:#fff;border:none;
+  border-radius:8px;width:34px;height:34px;font-size:15px;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;
+}
+.photo-expand-btn:hover{background:var(--ink)}
+.photo-view-modal{
+  background:transparent;box-shadow:none;max-width:min(92vw,900px);width:auto;
+  display:flex;flex-direction:column;align-items:center;position:relative;
+}
+.photo-view-modal img{max-width:100%;max-height:86vh;border-radius:10px;box-shadow:0 24px 60px rgba(0,0,0,.45);display:block}
+.photo-view-modal .x{
+  position:absolute;top:-16px;right:-16px;background:#fff;color:var(--ink);border-radius:50%;
+  width:34px;height:34px;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:18px;
+}
 .photo-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
 .content-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;padding:16px}
 .content-card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:transform .12s ease,box-shadow .12s ease}
@@ -680,10 +701,16 @@ body.gated .gate{display:flex}
           <button class="nav-link" type="button" data-view="events"><span class="idx">08</span> Events</button>
         </div>
       </div>
+      <div class="nav-group" data-nav-group="project-tracker">
+        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Tracker</button>
+        <div class="nav-items">
+          <button class="nav-link" type="button" data-view="projtasks"><span class="idx">09</span> Project Tracker</button>
+        </div>
+      </div>
       <div class="nav-group" data-nav-group="settings">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Settings</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="settings"><span class="idx">09</span> Settings</button>
+          <button class="nav-link" type="button" data-view="settings"><span class="idx">10</span> Settings</button>
         </div>
       </div>
     </nav>
@@ -1101,6 +1128,13 @@ body.gated .gate{display:flex}
         </div>
         <div class="card">
           <div class="card-head">
+            <h3>Best-Selling Day of Week</h3>
+            <span class="hint">All events - ranked by total sales</span>
+          </div>
+          <div id="eTopWeekdays"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
             <h3 id="eBreakTitle">All events</h3>
             <span class="hint" id="eCount"></span>
           </div>
@@ -1114,6 +1148,47 @@ body.gated .gate{display:flex}
             </table>
           </div>
           <div id="eEmpty"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROJECT TRACKER ============ -->
+    <section class="view" id="view-projtasks">
+      <header class="topbar">
+        <h2>Project Tracker</h2>
+        <p class="sub">Log topics and projects with due dates - track what is on progress, done, on hold or cancelled.</p>
+        <div class="filters">
+          <div class="field">
+            <label for="ptSearch">Search</label>
+            <input class="search" id="ptSearch" type="search" placeholder="Topic, project, detail" />
+          </div>
+          <div class="spacer"></div>
+          <button class="btn primary" type="button" id="btnAddProjTask">+ Add project</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="card">
+          <div class="card-head">
+            <h3>Project Tracker</h3>
+            <span class="hint" id="ptCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="ptTable">
+              <thead>
+                <tr>
+                  <th data-sort="createdAt">Created</th>
+                  <th data-sort="topic">Topic</th>
+                  <th data-sort="project">Project</th>
+                  <th>Detail</th>
+                  <th data-sort="dueDate">Due Date</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ptBody"></tbody>
+            </table>
+          </div>
+          <div id="ptEmpty"></div>
         </div>
       </div>
     </section>
@@ -1321,6 +1396,15 @@ body.gated .gate{display:flex}
       <button class="x" type="button" data-close aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
+      <div class="f">
+        <label>Photo ref</label>
+        <div class="photo-paste photo-paste-lg" id="cf_photoZone" tabindex="0">
+          <img id="cf_photoPreview" style="display:none" alt="Pasted reference photo" />
+          <button class="photo-expand-btn" type="button" id="btnExpandPhoto" style="display:none" aria-label="View full size photo" title="View full size">&#128269;</button>
+          <span id="cf_photoHint">Click here, then paste an image (Ctrl+V / Cmd+V)</span>
+        </div>
+        <button class="btn ghost" type="button" id="btnRemovePhoto" style="display:none;align-self:flex-start">Remove photo</button>
+      </div>
       <div class="grid2">
         <div class="f"><label for="cf_title">Title</label><input id="cf_title" placeholder="e.g. Rainy day coffee ritual" /></div>
         <div class="f"><label for="cf_campaign">Campaign</label><input id="cf_campaign" placeholder="e.g. July - Bloom Cafe" /></div>
@@ -1329,19 +1413,54 @@ body.gated .gate{display:flex}
       <div class="f"><label for="cf_script">Script</label><textarea id="cf_script" placeholder="Line by line script" rows="4"></textarea></div>
       <div class="f"><label for="cf_storyboard">Storyboard</label><textarea id="cf_storyboard" placeholder="Shot by shot notes" rows="4"></textarea></div>
       <div class="f"><label for="cf_caption">Caption</label><textarea id="cf_caption" placeholder="Caption for the post" rows="3"></textarea></div>
-      <div class="f">
-        <label>Photo ref</label>
-        <div class="photo-paste" id="cf_photoZone" tabindex="0">
-          <img id="cf_photoPreview" style="display:none" alt="Pasted reference photo" />
-          <span id="cf_photoHint">Click here, then paste an image (Ctrl+V / Cmd+V)</span>
-        </div>
-        <button class="btn ghost" type="button" id="btnRemovePhoto" style="display:none;align-self:flex-start">Remove photo</button>
-      </div>
     </div>
     <div class="modal-foot">
       <button class="btn danger" type="button" id="btnDeleteContent" style="margin-right:auto">Delete</button>
       <button class="btn ghost" type="button" data-close>Cancel</button>
       <button class="btn primary" type="button" id="btnSaveContent">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="backdrop" id="mdPhotoView">
+  <div class="modal photo-view-modal" role="dialog" aria-modal="true" aria-label="Photo preview">
+    <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    <img id="photoViewImg" alt="Photo full size" />
+  </div>
+</div>
+
+<!-- ============ PROJECT TASK MODAL ============ -->
+<div class="backdrop" id="mdProjTask">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mdProjTaskTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="mdProjTaskTitle">Add project</h3>
+        <p id="ptCreatedHint"></p>
+      </div>
+      <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="f"><label for="pt_topic">Topic</label><input id="pt_topic" placeholder="e.g. New TikTok series" /></div>
+        <div class="f"><label for="pt_project">Project</label><input id="pt_project" placeholder="e.g. Bloom Cafe" /></div>
+      </div>
+      <div class="f"><label for="pt_detail">Detail</label><textarea id="pt_detail" placeholder="What needs to happen?" rows="4"></textarea></div>
+      <div class="grid2">
+        <div class="f"><label for="pt_dueDate">Due date</label><input id="pt_dueDate" type="date" /></div>
+        <div class="f"><label for="pt_status">Status</label>
+          <select id="pt_status">
+            <option value="On Progress">On Progress</option>
+            <option value="Done">Done</option>
+            <option value="On Hold">On Hold</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" type="button" id="btnDeleteProjTask" style="margin-right:auto">Delete</button>
+      <button class="btn ghost" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="button" id="btnSaveProjTask">Save</button>
     </div>
   </div>
 </div>
@@ -1374,6 +1493,7 @@ var FIREBASE_EVENTS_COLLECTION = 'boothEvents';
 var FIREBASE_SETTINGS_COLLECTION = 'settings';
 var FIREBASE_SETTINGS_DOC = 'main';
 var FIREBASE_CONTENT_COLLECTION = 'contentIdeas';
+var FIREBASE_PROJTASKS_COLLECTION = 'projectTasks';
 /* Monthly engagement KPI is user-editable now - see engagementTarget() and state.settings.engagementTarget */
 var SIGN_IN = 'none';              /* no login screen; Firestore rules control who can read/write */
 var SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
@@ -1385,6 +1505,7 @@ var BILLING_KEY = 'whanpak:approval-requests:v1';
 var SETTINGS_KEY = 'whanpak:builder-settings:v1';
 var EVENTS_KEY = 'whanpak:booth-events:v1';
 var CONTENT_KEY = 'whanpak:content-ideas:v1';
+var PROJTASKS_KEY = 'whanpak:project-tasks:v1';
 var canStore = typeof window.storage !== 'undefined' && window.storage;
 
 function loadRecords(){
@@ -1481,6 +1602,22 @@ function persistContentLocal(){
   try {
     if(canStore) return window.storage.set(CONTENT_KEY, JSON.stringify(state.content || [])).catch(function(){});
     localStorage.setItem(CONTENT_KEY, JSON.stringify(state.content || []));
+  } catch(e){}
+}
+function loadProjTasks(){
+  if(canStore){
+    return window.storage.get(PROJTASKS_KEY).then(function(r){
+      if(!r || !r.value) return;
+      try { state.projTasks = JSON.parse(r.value) || []; } catch(e){ state.projTasks = []; }
+    }).catch(function(){});
+  }
+  try { state.projTasks = JSON.parse(localStorage.getItem(PROJTASKS_KEY) || '[]') || []; } catch(e){ state.projTasks = []; }
+  return Promise.resolve();
+}
+function persistProjTasksLocal(){
+  try {
+    if(canStore) return window.storage.set(PROJTASKS_KEY, JSON.stringify(state.projTasks || [])).catch(function(){});
+    localStorage.setItem(PROJTASKS_KEY, JSON.stringify(state.projTasks || []));
   } catch(e){}
 }
 function persistBillingLocal(){
@@ -1639,6 +1776,28 @@ function removeContentOne(id){
   persistContentLocal();
   if(!live() || state.contentSyncOff) return;
   fb.fs.deleteDoc(fb.fs.doc(fb.db, FIREBASE_CONTENT_COLLECTION, id)).catch(syncFail);
+}
+function projTaskDocBody(r){
+  return {
+    topic: r.topic || '',
+    project: r.project || '',
+    detail: r.detail || '',
+    dueDate: r.dueDate || '',
+    status: r.status || 'On Progress',
+    createdAt: r.createdAt || Date.now(),
+    updatedAt: Date.now(),
+    updatedBy: whoami()
+  };
+}
+function saveProjTaskOne(r){
+  persistProjTasksLocal();
+  if(!live() || state.projTasksSyncOff) return;
+  fb.fs.setDoc(fb.fs.doc(fb.db, FIREBASE_PROJTASKS_COLLECTION, r.id), projTaskDocBody(r)).catch(syncFail);
+}
+function removeProjTaskOne(id){
+  persistProjTasksLocal();
+  if(!live() || state.projTasksSyncOff) return;
+  fb.fs.deleteDoc(fb.fs.doc(fb.db, FIREBASE_PROJTASKS_COLLECTION, id)).catch(syncFail);
 }
 function billingDocBody(r){
   var out = {};
@@ -1833,6 +1992,23 @@ function subscribeContent(){
     setStoreState(false, 'Content sync error - ' + (err.code || 'check your Firestore rules'));
   });
 }
+function subscribeProjTasks(){
+  if(fb.unsubProjTasks) return;
+  fb.unsubProjTasks = fb.fs.onSnapshot(fb.fs.collection(fb.db, FIREBASE_PROJTASKS_COLLECTION), function(snap){
+    var list = [];
+    snap.forEach(function(d){
+      var v = d.data() || {};
+      v.id = d.id;
+      list.push(v);
+    });
+    state.projTasks = list;
+    persistProjTasksLocal();
+    if(state.view === 'projtasks') renderProjTasks();
+  }, function(err){
+    state.projTasksSyncOff = true;
+    setStoreState(false, 'Project tracker sync error - ' + (err.code || 'check your Firestore rules'));
+  });
+}
 
 function connectTeam(){
   setStoreState(true, 'Connecting to your team ledger...');
@@ -1841,7 +2017,7 @@ function connectTeam(){
     import(SDK + 'firebase-firestore.js')
   ]).then(function(m){
     var app = m[0].initializeApp(FIREBASE_CONFIG);
-    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null, unsubEvents:null, unsubSettings:null, unsubContent:null };
+    fb = { fs:m[1], db:m[1].getFirestore(app), unsub:null, unsubTargets:null, unsubBilling:null, unsubEvents:null, unsubSettings:null, unsubContent:null, unsubProjTasks:null };
     renderAuthBox();
     updateGate();
     subscribe();
@@ -1850,6 +2026,7 @@ function connectTeam(){
     subscribeEvents();
     subscribeSettings();
     subscribeContent();
+    subscribeProjTasks();
   }).catch(function(e){
     fb = null;
     document.body.classList.remove('gated');
@@ -1931,6 +2108,19 @@ function dateLabel(iso){
   var p = dateParts(iso);
   return p ? (pad(p.d) + ' ' + MON[p.m-1] + ' ' + p.y) : '-';
 }
+function dateTimeLabel(ms){
+  if(!ms) return '-';
+  var d = new Date(ms);
+  if(isNaN(d.getTime())) return '-';
+  return pad(d.getDate()) + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function projTaskStatusClass(v){
+  v = String(v || '').trim();
+  if(v === 'Done') return 'done';
+  if(v === 'On Hold') return 'hold';
+  if(v === 'Cancelled') return 'cancelled';
+  return 'progress';
+}
 var ENG_KEYS = ['likes','comments','shares','saves','reposts'];
 function linkEngagement(l){
   return ENG_KEYS.reduce(function(s,k){ return s + num(l[k]); }, 0);
@@ -1966,12 +2156,16 @@ var state = {
   contentSyncOff: false,
   contentPhotoDraft: '',
   cf: { q:'' },
+  projTasks: [],
+  projTasksSyncOff: false,
+  pf: { q:'' },
+  editingProjTaskId: null,
   view: 'records',
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
   tf: { year:String(now.getFullYear()) },
   ef: { year:String(now.getFullYear()), month:'all' },
-  sort: { records:null, analytics:null, targets:null, budget:null, billing:null, database:null, settings:null, content:null },
+  sort: { records:null, analytics:null, targets:null, budget:null, billing:null, database:null, settings:null, content:null, projTasks:null },
   targets: {},
   settings: defaultSettings(),
   editTarget: null,
@@ -3440,18 +3634,21 @@ function renderContentPhoto(){
   var img = document.getElementById('cf_photoPreview');
   var hint = document.getElementById('cf_photoHint');
   var removeBtn = document.getElementById('btnRemovePhoto');
+  var expandBtn = document.getElementById('btnExpandPhoto');
   if(url){
     img.src = url;
     img.style.display = '';
     hint.style.display = 'none';
     zone.classList.add('has-photo');
     removeBtn.style.display = '';
+    expandBtn.style.display = '';
   } else {
     img.removeAttribute('src');
     img.style.display = 'none';
     hint.style.display = '';
     zone.classList.remove('has-photo');
     removeBtn.style.display = 'none';
+    expandBtn.style.display = 'none';
   }
 }
 function openContentIdea(id){
@@ -3503,6 +3700,115 @@ function deleteContentIdea(id){
   closeModal('mdContent');
   renderContent();
   toast('Content idea deleted');
+}
+
+/* ---------------- project tracker ---------------- */
+function filteredProjTasks(){
+  var q = String(state.pf.q || '').trim().toLowerCase();
+  var list = (state.projTasks || []).slice();
+  if(q){
+    list = list.filter(function(r){
+      return ['topic','project','detail'].some(function(k){ return String(r[k] || '').toLowerCase().indexOf(q) > -1; });
+    });
+  }
+  return list;
+}
+function sortProjTaskValue(r, key){
+  if(key === 'createdAt') return num(r.createdAt) || 0;
+  if(key === 'dueDate') return r.dueDate || '';
+  return r[key] || '';
+}
+function renderProjTasks(){
+  var sort = state.sort.projTasks;
+  var base = filteredProjTasks();
+  if(!sort || !sort.key){
+    base = base.slice().sort(function(a,b){ return (num(b.createdAt) || 0) - (num(a.createdAt) || 0); });
+  }
+  var rows = sortRows(base, sort, sortProjTaskValue);
+  document.getElementById('ptSearch').value = state.pf.q || '';
+  markSort(document.getElementById('ptTable'), sort);
+  document.getElementById('ptCount').textContent = rows.length + ' shown of ' + (state.projTasks || []).length + ' total';
+  if(!rows.length){
+    document.getElementById('ptBody').innerHTML = '';
+    document.getElementById('ptEmpty').innerHTML = '<div class="empty"><h4>No projects logged yet</h4><p>Add a topic, project, detail and due date to start tracking.</p><button class="btn primary" type="button" data-act="addprojtask">+ Add project</button></div>';
+    return;
+  }
+  document.getElementById('ptEmpty').innerHTML = '';
+  document.getElementById('ptBody').innerHTML = rows.map(function(r){
+    var cls = projTaskStatusClass(r.status);
+    return '<tr data-projtask-row="' + esc(r.id) + '">' +
+      '<td class="date" data-label="Created">' + dateTimeLabel(r.createdAt) + '</td>' +
+      '<td class="name" data-label="Topic">' + esc(r.topic || '(untitled)') + '</td>' +
+      '<td class="sub" data-label="Project">' + esc(r.project || '-') + '</td>' +
+      '<td class="sub" data-label="Detail">' + esc(truncateText(r.detail, 70) || '-') + '</td>' +
+      '<td class="date" data-label="Due Date">' + (r.dueDate ? dateLabel(r.dueDate) : '-') + '</td>' +
+      '<td data-label="Status">' +
+        '<select class="status-badge ' + cls + '" data-projtask-status="' + esc(r.id) + '">' +
+          ['On Progress','Done','On Hold','Cancelled'].map(function(s){
+            return '<option value="' + s + '"' + (s === (r.status || 'On Progress') ? ' selected' : '') + '>' + s + '</option>';
+          }).join('') +
+        '</select>' +
+      '</td>' +
+      '<td class="row-actions" data-label="">' +
+        '<button class="icon-btn" type="button" data-projtask-edit="' + esc(r.id) + '">Edit</button>' +
+        '<button class="icon-btn" type="button" data-projtask-del="' + esc(r.id) + '">Delete</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+function openProjTask(id){
+  state.editingProjTaskId = id || null;
+  var r = id ? (state.projTasks || []).find(function(x){ return x.id === id; }) : null;
+  document.getElementById('mdProjTaskTitle').textContent = r ? 'Edit project' : 'Add project';
+  document.getElementById('ptCreatedHint').textContent = r ? ('Logged ' + dateTimeLabel(r.createdAt)) : 'Date and time will be recorded automatically.';
+  document.getElementById('pt_topic').value = r ? (r.topic || '') : '';
+  document.getElementById('pt_project').value = r ? (r.project || '') : '';
+  document.getElementById('pt_detail').value = r ? (r.detail || '') : '';
+  document.getElementById('pt_dueDate').value = r ? (r.dueDate || '') : '';
+  document.getElementById('pt_status').value = r ? (r.status || 'On Progress') : 'On Progress';
+  document.getElementById('btnDeleteProjTask').style.display = r ? '' : 'none';
+  openModal('mdProjTask');
+}
+function saveProjTask(){
+  var data = {
+    topic: document.getElementById('pt_topic').value.trim(),
+    project: document.getElementById('pt_project').value.trim(),
+    detail: document.getElementById('pt_detail').value.trim(),
+    dueDate: document.getElementById('pt_dueDate').value || '',
+    status: document.getElementById('pt_status').value || 'On Progress'
+  };
+  var target;
+  if(state.editingProjTaskId){
+    target = (state.projTasks || []).find(function(x){ return x.id === state.editingProjTaskId; });
+    Object.keys(data).forEach(function(k){ target[k] = data[k]; });
+  } else {
+    data.id = uid();
+    data.createdAt = Date.now();
+    state.projTasks = state.projTasks || [];
+    state.projTasks.push(data);
+    target = data;
+  }
+  saveProjTaskOne(target);
+  closeModal('mdProjTask');
+  renderProjTasks();
+  toast('Project saved');
+}
+function deleteProjTask(id){
+  id = id || state.editingProjTaskId;
+  if(!id) return;
+  if(!confirm('Delete this project?')) return;
+  state.projTasks = (state.projTasks || []).filter(function(r){ return r.id !== id; });
+  removeProjTaskOne(id);
+  closeModal('mdProjTask');
+  renderProjTasks();
+  toast('Project deleted');
+}
+function setProjTaskStatus(id, status){
+  var r = (state.projTasks || []).find(function(x){ return x.id === id; });
+  if(!r) return;
+  r.status = status;
+  saveProjTaskOne(r);
+  renderProjTasks();
 }
 
 /* ---------------- events view ---------------- */
@@ -3594,6 +3900,31 @@ function renderEventTopDays(){
     '</div>';
   }).join('') : '<div class="empty"><p>No sales recorded yet.</p></div>';
 }
+var WEEKDAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function salesByWeekday(){
+  var buckets = WEEKDAY_LABELS.map(function(label, idx){ return { idx:idx, label:label, total:0, days:0 }; });
+  eventSalesFlat().forEach(function(d){
+    var p = dateParts(d.date);
+    if(!p) return;
+    var dow = new Date(p.y, p.m - 1, p.d).getDay();
+    var amt = num(d.amount);
+    buckets[dow].total += amt;
+    if(amt > 0) buckets[dow].days += 1;
+  });
+  buckets.forEach(function(b){ b.avg = b.days ? b.total / b.days : 0; });
+  return buckets.filter(function(b){ return b.total > 0; }).sort(function(a,b){ return b.total - a.total; });
+}
+function renderEventTopWeekdays(){
+  var ranked = salesByWeekday();
+  document.getElementById('eTopWeekdays').innerHTML = ranked.length ? ranked.map(function(b, i){
+    var medal = i === 0 ? '&#129351;' : i === 1 ? '&#129352;' : i === 2 ? '&#129353;' : String(i + 1);
+    return '<div class="rank-row' + (i < 3 ? ' top' + (i+1) : '') + '">' +
+      '<span class="rank-medal' + (i < 3 ? '' : ' num') + '">' + medal + '</span>' +
+      '<span class="rank-date">' + b.label + '<br><span style="font-size:11px;color:var(--muted)">' + b.days + ' day' + (b.days === 1 ? '' : 's') + ' with sales - avg ' + money(b.avg) + '/day</span></span>' +
+      '<span class="rank-amt">' + money(b.total) + '</span>' +
+    '</div>';
+  }).join('') : '<div class="empty"><p>No sales recorded yet.</p></div>';
+}
 function openMonthSales(monthKey){
   var year = +state.ef.year;
   var monthName = MONTHS[+monthKey - 1];
@@ -3673,6 +4004,7 @@ function eventStatusInfo(ev){
 function renderEvents(){
   renderEventChart();
   renderEventTopDays();
+  renderEventTopWeekdays();
   var year = +state.ef.year;
   var head = document.getElementById('eHead');
   var body = document.getElementById('eBody');
@@ -4122,6 +4454,7 @@ function render(){
   else if(state.view === 'settings') renderSettings();
   else if(state.view === 'events') renderEvents();
   else if(state.view === 'content') renderContent();
+  else if(state.view === 'projtasks') renderProjTasks();
   else renderTargets();
 }
 
@@ -4368,7 +4701,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav-group'), function(g
     });
   }
 });
-var VALID_VIEWS = ['content','records','analytics','targets','budget','billing','database','settings','events'];
+var VALID_VIEWS = ['content','records','analytics','targets','budget','billing','database','settings','events','projtasks'];
 function activateView(view, opts){
   opts = opts || {};
   var btn = document.querySelector('.nav .nav-link[data-view="' + view + '"]');
@@ -4384,6 +4717,7 @@ function activateView(view, opts){
   document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
   document.getElementById('view-events').classList.toggle('active', state.view === 'events');
   document.getElementById('view-content').classList.toggle('active', state.view === 'content');
+  document.getElementById('view-projtasks').classList.toggle('active', state.view === 'projtasks');
   render();
   if(!opts.skipHash){
     if(window.location.hash !== '#' + view){
@@ -4911,6 +5245,40 @@ document.getElementById('btnRemovePhoto').addEventListener('click', function(){
   state.contentPhotoDraft = '';
   renderContentPhoto();
 });
+document.getElementById('btnExpandPhoto').addEventListener('click', function(e){
+  e.stopPropagation();
+  if(!state.contentPhotoDraft) return;
+  document.getElementById('photoViewImg').src = state.contentPhotoDraft;
+  openModal('mdPhotoView');
+});
+
+document.getElementById('ptSearch').addEventListener('input', function(e){
+  state.pf.q = e.target.value;
+  renderProjTasks();
+});
+document.getElementById('ptTable').addEventListener('click', function(e){
+  var th = e.target.closest('th[data-sort]');
+  if(th){
+    setSort('projTasks', th.dataset.sort);
+    renderProjTasks();
+    return;
+  }
+  var editBtn = e.target.closest('[data-projtask-edit]');
+  if(editBtn){ openProjTask(editBtn.dataset.projtaskEdit); return; }
+  var delBtn = e.target.closest('[data-projtask-del]');
+  if(delBtn){ deleteProjTask(delBtn.dataset.projtaskDel); return; }
+});
+document.getElementById('ptTable').addEventListener('change', function(e){
+  var sel = e.target.closest('[data-projtask-status]');
+  if(sel) setProjTaskStatus(sel.dataset.projtaskStatus, sel.value);
+});
+document.getElementById('view-projtasks').addEventListener('click', function(e){
+  var t = e.target.closest('[data-act="addprojtask"]');
+  if(t) openProjTask(null);
+});
+document.getElementById('btnAddProjTask').addEventListener('click', function(){ openProjTask(null); });
+document.getElementById('btnSaveProjTask').addEventListener('click', saveProjTask);
+document.getElementById('btnDeleteProjTask').addEventListener('click', function(){ deleteProjTask(); });
 var PHOTO_MAX_BYTES = 900000;
 function compressImageDataUrl(dataUrl, maxBytes, cb){
   var done = false;
@@ -5249,7 +5617,7 @@ function recovered(){
 /* ---------------- boot ---------------- */
 function bootLocal(){
   if(!canStore) setStoreState(false, 'Saving is off here - records last for this session');
-  return Promise.all([loadRecords(), loadTargets(), loadBilling(), loadSettings(), loadEvents(), loadContent()]).then(function(all){
+  return Promise.all([loadRecords(), loadTargets(), loadBilling(), loadSettings(), loadEvents(), loadContent(), loadProjTasks()]).then(function(all){
     var data = all[0];
     var seeded = data && data.seeded;
     state.records = data && Array.isArray(data.records) ? data.records : [];
@@ -5266,7 +5634,7 @@ function bootLocal(){
 }
 
 if(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId){
-  Promise.all([loadTargets(), loadBilling(), loadSettings(), loadEvents(), loadContent()]).then(render);
+  Promise.all([loadTargets(), loadBilling(), loadSettings(), loadEvents(), loadContent(), loadProjTasks()]).then(render);
   connectTeam();
 } else {
   bootLocal();
