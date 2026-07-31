@@ -256,6 +256,23 @@ tfoot td{padding:11px 12px;border-top:2px solid var(--line);font-weight:600;back
 .status-badge.done{background:#DDF3E4;color:#1E8E4A}
 .status-badge.hold{background:#EFF3F7;color:var(--muted)}
 .status-badge.cancelled{background:#FBDEDC;color:#C0342A}
+#pt_checklist{display:flex;flex-direction:column}
+.checklist-row{
+  display:grid;grid-template-columns:18px minmax(0,108px) 10px minmax(0,108px) minmax(0,1fr) 26px;
+  align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--line);
+}
+.checklist-row:last-child{border-bottom:0}
+.checklist-row.done .cl-text{text-decoration:line-through;color:var(--muted)}
+.cl-done{width:16px;height:16px;cursor:pointer;min-width:0}
+.cl-start,.cl-end{width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;padding:5px 3px;font-size:11px}
+.cl-sep{color:var(--muted);font-size:12px;text-align:center}
+.cl-text{width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px}
+.cl-remove{width:100%;min-width:0;padding:4px 0}
+.pt-progress{display:flex;align-items:center;gap:8px;min-width:120px}
+.pt-progress-track{flex:1;height:7px;border-radius:999px;background:#EDF1F5;overflow:hidden}
+.pt-progress-fill{height:100%;background:var(--teal);border-radius:999px}
+.pt-progress-fill.zero{background:var(--line)}
+.pt-progress-pct{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;width:34px;text-align:right}
 select.status-badge{border:none;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;font-family:var(--mono)}
 td.num.unfilled{color:var(--red)}
 select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
@@ -643,6 +660,9 @@ body.gated .gate{display:flex}
   .xaxis{padding-left:46px}
   .bar-col .val{display:none}
   .modal-body{padding:14px}
+  .checklist-row{grid-template-columns:16px minmax(0,84px) 8px minmax(0,84px) minmax(0,1fr) 24px;gap:4px}
+  .cl-start,.cl-end{padding:5px 2px;font-size:10px}
+  .cl-text{padding:6px 5px}
   .eng-total .v{font-size:19px}
 }
 @media (prefers-reduced-motion:reduce){
@@ -1182,6 +1202,7 @@ body.gated .gate{display:flex}
                   <th>Detail</th>
                   <th data-sort="dueDate">Due Date</th>
                   <th>Status</th>
+                  <th>Progress</th>
                   <th></th>
                 </tr>
               </thead>
@@ -1445,6 +1466,11 @@ body.gated .gate{display:flex}
         <div class="f"><label for="pt_project">Project</label><input id="pt_project" placeholder="e.g. Bloom Cafe" /></div>
       </div>
       <div class="f"><label for="pt_detail">Detail</label><textarea id="pt_detail" placeholder="What needs to happen?" rows="4"></textarea></div>
+      <div class="f">
+        <label>Checklist</label>
+        <div id="pt_checklist"></div>
+        <button class="btn ghost" type="button" id="btnAddChecklistItem" style="align-self:flex-start">+ Add item</button>
+      </div>
       <div class="grid2">
         <div class="f"><label for="pt_dueDate">Due date</label><input id="pt_dueDate" type="date" /></div>
         <div class="f"><label for="pt_status">Status</label>
@@ -1782,6 +1808,7 @@ function projTaskDocBody(r){
     topic: r.topic || '',
     project: r.project || '',
     detail: r.detail || '',
+    checklist: Array.isArray(r.checklist) ? r.checklist : [],
     dueDate: r.dueDate || '',
     status: r.status || 'On Progress',
     createdAt: r.createdAt || Date.now(),
@@ -2120,6 +2147,31 @@ function projTaskStatusClass(v){
   if(v === 'On Hold') return 'hold';
   if(v === 'Cancelled') return 'cancelled';
   return 'progress';
+}
+function workdaysBetween(start, end){
+  var count = 0;
+  var d = new Date(start.getTime());
+  d.setDate(d.getDate() + 1);
+  while(d.getTime() <= end.getTime()){
+    var dow = d.getDay();
+    if(dow !== 0 && dow !== 6) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+function dueDateWorkdaysLabel(dueIso){
+  var p = dateParts(dueIso);
+  if(!p) return '';
+  var due = new Date(p.y, p.m - 1, p.d);
+  var t = new Date();
+  var today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  if(due.getTime() === today.getTime()) return 'Due today';
+  if(due.getTime() > today.getTime()){
+    var n = workdaysBetween(today, due);
+    return n + ' work day' + (n === 1 ? '' : 's') + ' left';
+  }
+  var n2 = workdaysBetween(due, today);
+  return 'Overdue by ' + n2 + ' work day' + (n2 === 1 ? '' : 's');
 }
 var ENG_KEYS = ['likes','comments','shares','saves','reposts'];
 function linkEngagement(l){
@@ -3740,8 +3792,13 @@ function renderProjTasks(){
       '<td class="date" data-label="Created">' + dateTimeLabel(r.createdAt) + '</td>' +
       '<td class="name" data-label="Topic">' + esc(r.topic || '(untitled)') + '</td>' +
       '<td class="sub" data-label="Project">' + esc(r.project || '-') + '</td>' +
-      '<td class="sub" data-label="Detail">' + esc(truncateText(r.detail, 70) || '-') + '</td>' +
-      '<td class="date" data-label="Due Date">' + (r.dueDate ? dateLabel(r.dueDate) : '-') + '</td>' +
+      '<td class="sub" data-label="Detail">' + esc(truncateText(r.detail, 70) || '-') +
+        (Array.isArray(r.checklist) && r.checklist.length
+          ? ('<br><span style="font-size:11px;color:var(--muted)">' + r.checklist.filter(function(c){ return c.done; }).length + '/' + r.checklist.length + ' checklist done</span>')
+          : '') + '</td>' +
+      '<td class="date" data-label="Due Date">' + (r.dueDate
+        ? (dateLabel(r.dueDate) + '<br><span style="font-size:11px;color:var(--muted)">' + esc(dueDateWorkdaysLabel(r.dueDate)) + '</span>')
+        : '-') + '</td>' +
       '<td data-label="Status">' +
         '<select class="status-badge ' + cls + '" data-projtask-status="' + esc(r.id) + '">' +
           ['On Progress','Done','On Hold','Cancelled'].map(function(s){
@@ -3749,12 +3806,44 @@ function renderProjTasks(){
           }).join('') +
         '</select>' +
       '</td>' +
+      '<td data-label="Progress">' + projTaskProgressHtml(r) + '</td>' +
       '<td class="row-actions" data-label="">' +
         '<button class="icon-btn" type="button" data-projtask-edit="' + esc(r.id) + '">Edit</button>' +
         '<button class="icon-btn" type="button" data-projtask-del="' + esc(r.id) + '">Delete</button>' +
       '</td>' +
     '</tr>';
   }).join('');
+}
+function projTaskProgressHtml(r){
+  var cl = Array.isArray(r.checklist) ? r.checklist : [];
+  var pct = cl.length ? Math.round(cl.filter(function(c){ return c.done; }).length / cl.length * 100) : (r.status === 'Done' ? 100 : 0);
+  return '<div class="pt-progress">' +
+    '<div class="pt-progress-track"><div class="pt-progress-fill' + (pct === 0 ? ' zero' : '') + '" style="width:' + pct + '%"></div></div>' +
+    '<span class="pt-progress-pct">' + pct + '%</span>' +
+  '</div>';
+}
+function checklistRowHtml(item){
+  item = item || {};
+  var id = item.id || uid();
+  return '<div class="checklist-row' + (item.done ? ' done' : '') + '" data-cl-id="' + esc(id) + '">' +
+    '<input type="checkbox" class="cl-done"' + (item.done ? ' checked' : '') + ' aria-label="Done" />' +
+    '<input type="date" class="cl-start" value="' + esc(item.start || '') + '" aria-label="Start date" />' +
+    '<span class="cl-sep">-</span>' +
+    '<input type="date" class="cl-end" value="' + esc(item.end || '') + '" aria-label="End date" />' +
+    '<input type="text" class="cl-text" placeholder="What needs to happen" value="' + esc(item.text || '') + '" />' +
+    '<button type="button" class="icon-btn cl-remove" aria-label="Remove item">&times;</button>' +
+  '</div>';
+}
+function readChecklistDraft(){
+  return Array.prototype.map.call(document.querySelectorAll('#pt_checklist .checklist-row'), function(row){
+    return {
+      id: row.dataset.clId,
+      start: row.querySelector('.cl-start').value || '',
+      end: row.querySelector('.cl-end').value || '',
+      text: row.querySelector('.cl-text').value.trim(),
+      done: row.querySelector('.cl-done').checked
+    };
+  }).filter(function(it){ return it.text || it.start || it.end; });
 }
 function openProjTask(id){
   state.editingProjTaskId = id || null;
@@ -3764,6 +3853,7 @@ function openProjTask(id){
   document.getElementById('pt_topic').value = r ? (r.topic || '') : '';
   document.getElementById('pt_project').value = r ? (r.project || '') : '';
   document.getElementById('pt_detail').value = r ? (r.detail || '') : '';
+  document.getElementById('pt_checklist').innerHTML = (r && Array.isArray(r.checklist) ? r.checklist : []).map(checklistRowHtml).join('');
   document.getElementById('pt_dueDate').value = r ? (r.dueDate || '') : '';
   document.getElementById('pt_status').value = r ? (r.status || 'On Progress') : 'On Progress';
   document.getElementById('btnDeleteProjTask').style.display = r ? '' : 'none';
@@ -3774,6 +3864,7 @@ function saveProjTask(){
     topic: document.getElementById('pt_topic').value.trim(),
     project: document.getElementById('pt_project').value.trim(),
     detail: document.getElementById('pt_detail').value.trim(),
+    checklist: readChecklistDraft(),
     dueDate: document.getElementById('pt_dueDate').value || '',
     status: document.getElementById('pt_status').value || 'On Progress'
   };
@@ -5277,6 +5368,18 @@ document.getElementById('view-projtasks').addEventListener('click', function(e){
   if(t) openProjTask(null);
 });
 document.getElementById('btnAddProjTask').addEventListener('click', function(){ openProjTask(null); });
+document.getElementById('btnAddChecklistItem').addEventListener('click', function(){
+  document.getElementById('pt_checklist').insertAdjacentHTML('beforeend', checklistRowHtml({}));
+});
+document.getElementById('pt_checklist').addEventListener('change', function(e){
+  if(e.target.classList.contains('cl-done')){
+    e.target.closest('.checklist-row').classList.toggle('done', e.target.checked);
+  }
+});
+document.getElementById('pt_checklist').addEventListener('click', function(e){
+  var rm = e.target.closest('.cl-remove');
+  if(rm) rm.closest('.checklist-row').remove();
+});
 document.getElementById('btnSaveProjTask').addEventListener('click', saveProjTask);
 document.getElementById('btnDeleteProjTask').addEventListener('click', function(){ deleteProjTask(); });
 var PHOTO_MAX_BYTES = 900000;
