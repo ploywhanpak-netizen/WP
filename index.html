@@ -373,6 +373,11 @@ select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
 .f input:focus,.f textarea:focus{border-color:var(--focus)}
 .f .help{font-size:11px;color:var(--muted)}
 .wide-field{grid-column:span 2}
+.photo-paste{border:1.5px dashed var(--line);border-radius:9px;min-height:110px;display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;cursor:text;background:#FAFCFE;color:var(--muted);font-size:12.5px;position:relative;outline:none}
+.photo-paste:focus{border-color:var(--focus);background:#fff}
+.photo-paste.has-photo{padding:8px;cursor:default}
+.photo-paste img{max-width:100%;max-height:220px;border-radius:6px;display:block}
+.photo-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
 .billing-modal{max-width:760px}
 .billing-modal .modal-head{
   background:var(--ink);color:#fff;border-bottom:0;border-radius:12px 12px 0 0;
@@ -708,6 +713,7 @@ body.gated .gate{display:flex}
             <table id="cTable">
               <thead>
                 <tr>
+                  <th>Photo</th>
                   <th data-sort="title">Title</th>
                   <th data-sort="campaign">Campaign</th>
                   <th>Idea</th>
@@ -1316,6 +1322,14 @@ body.gated .gate{display:flex}
       <div class="f"><label for="cf_script">Script</label><textarea id="cf_script" placeholder="Line by line script" rows="4"></textarea></div>
       <div class="f"><label for="cf_storyboard">Storyboard</label><textarea id="cf_storyboard" placeholder="Shot by shot notes" rows="4"></textarea></div>
       <div class="f"><label for="cf_caption">Caption</label><textarea id="cf_caption" placeholder="Caption for the post" rows="3"></textarea></div>
+      <div class="f">
+        <label>Photo ref</label>
+        <div class="photo-paste" id="cf_photoZone" tabindex="0">
+          <img id="cf_photoPreview" style="display:none" alt="Pasted reference photo" />
+          <span id="cf_photoHint">Click here, then paste an image (Ctrl+V / Cmd+V)</span>
+        </div>
+        <button class="btn ghost" type="button" id="btnRemovePhoto" style="display:none;align-self:flex-start">Remove photo</button>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn danger" type="button" id="btnDeleteContent" style="margin-right:auto">Delete</button>
@@ -1604,6 +1618,7 @@ function contentFields(){
 function contentDocBody(r){
   var out = {};
   contentFields().forEach(function(f){ out[f.key] = r[f.key] || ''; });
+  out.photoRef = r.photoRef || '';
   out.updatedAt = Date.now();
   out.updatedBy = whoami();
   return out;
@@ -1942,6 +1957,7 @@ var state = {
   billingSyncOff: false,
   content: [],
   contentSyncOff: false,
+  contentPhotoDraft: '',
   cf: { q:'' },
   view: 'records',
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
@@ -3395,12 +3411,33 @@ function renderContent(){
   document.getElementById('cEmpty').innerHTML = '';
   document.getElementById('cBody').innerHTML = rows.map(function(r){
     return '<tr data-content-row="' + esc(r.id) + '">' +
+      '<td data-label="Photo">' + (r.photoRef ? '<img class="photo-thumb" src="' + esc(r.photoRef) + '" alt="" />' : '-') + '</td>' +
       '<td class="name" data-label="Title">' + esc(r.title || '(untitled)') + '</td>' +
       '<td class="sub" data-label="Campaign">' + esc(r.campaign || '-') + '</td>' +
       '<td class="sub" data-label="Idea">' + esc(truncateText(r.idea, 60) || '-') + '</td>' +
       '<td class="sub" data-label="Caption">' + esc(truncateText(r.caption, 60) || '-') + '</td>' +
     '</tr>';
   }).join('');
+}
+function renderContentPhoto(){
+  var url = state.contentPhotoDraft || '';
+  var zone = document.getElementById('cf_photoZone');
+  var img = document.getElementById('cf_photoPreview');
+  var hint = document.getElementById('cf_photoHint');
+  var removeBtn = document.getElementById('btnRemovePhoto');
+  if(url){
+    img.src = url;
+    img.style.display = '';
+    hint.style.display = 'none';
+    zone.classList.add('has-photo');
+    removeBtn.style.display = '';
+  } else {
+    img.removeAttribute('src');
+    img.style.display = 'none';
+    hint.style.display = '';
+    zone.classList.remove('has-photo');
+    removeBtn.style.display = 'none';
+  }
 }
 function openContentIdea(id){
   state.editingContentId = id || null;
@@ -3412,6 +3449,8 @@ function openContentIdea(id){
   document.getElementById('cf_script').value = r ? (r.script || '') : '';
   document.getElementById('cf_storyboard').value = r ? (r.storyboard || '') : '';
   document.getElementById('cf_caption').value = r ? (r.caption || '') : '';
+  state.contentPhotoDraft = r ? (r.photoRef || '') : '';
+  renderContentPhoto();
   document.getElementById('btnDeleteContent').style.display = r ? '' : 'none';
   openModal('mdContent');
 }
@@ -3422,7 +3461,8 @@ function saveContentIdea(){
     idea: document.getElementById('cf_idea').value.trim(),
     script: document.getElementById('cf_script').value.trim(),
     storyboard: document.getElementById('cf_storyboard').value.trim(),
-    caption: document.getElementById('cf_caption').value.trim()
+    caption: document.getElementById('cf_caption').value.trim(),
+    photoRef: state.contentPhotoDraft || ''
   };
   var target;
   if(state.editingContentId){
@@ -4780,6 +4820,33 @@ document.getElementById('view-content').addEventListener('click', function(e){
 });
 document.getElementById('btnSaveContent').addEventListener('click', saveContentIdea);
 document.getElementById('btnDeleteContent').addEventListener('click', function(){ deleteContentIdea(); });
+document.getElementById('btnRemovePhoto').addEventListener('click', function(){
+  state.contentPhotoDraft = '';
+  renderContentPhoto();
+});
+document.getElementById('cf_photoZone').addEventListener('paste', function(e){
+  var items = (e.clipboardData && e.clipboardData.items) || [];
+  var imageItem = null;
+  for(var i=0;i<items.length;i++){
+    if(items[i].type && items[i].type.indexOf('image/') === 0){ imageItem = items[i]; break; }
+  }
+  if(!imageItem) return;
+  e.preventDefault();
+  var file = imageItem.getAsFile();
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    var dataUrl = String(reader.result || '');
+    if(dataUrl.length > 900000){
+      toast('Image too large - try a smaller screenshot or crop it first');
+      return;
+    }
+    state.contentPhotoDraft = dataUrl;
+    renderContentPhoto();
+  };
+  reader.onerror = function(){ toast('Could not read that image'); };
+  reader.readAsDataURL(file);
+});
 document.getElementById('btnEditFromDetail').addEventListener('click', function(){
   var id = state.detailEventId;
   closeModal('mdEventDetail');
