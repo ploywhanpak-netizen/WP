@@ -378,17 +378,6 @@ select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
 .photo-paste.has-photo{padding:8px;cursor:default}
 .photo-paste img{max-width:100%;max-height:220px;border-radius:6px;display:block}
 .photo-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
-.content-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;padding:16px}
-.content-card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:transform .12s ease,box-shadow .12s ease}
-.content-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(18,33,47,.10)}
-.content-card-photo{aspect-ratio:4/3;background:var(--clay-soft);display:flex;align-items:center;justify-content:center;overflow:hidden}
-.content-card-photo img{width:100%;height:100%;object-fit:cover;display:block}
-.content-card-noimg{font-size:11.5px;color:var(--clay);font-family:var(--mono);letter-spacing:.04em}
-.content-card-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
-.content-card-title{font-family:var(--display);font-size:14px;font-weight:600;color:var(--ink);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.content-card-campaign{align-self:flex-start;font-size:11px;color:var(--clay);background:var(--clay-soft);padding:2px 9px;border-radius:999px;font-weight:600}
-.content-card-idea{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.content-card-caption{margin:0;font-size:12px;color:var(--muted);font-style:italic;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .billing-modal{max-width:760px}
 .billing-modal .modal-head{
   background:var(--ink);color:#fff;border-bottom:0;border-radius:12px 12px 0 0;
@@ -720,8 +709,19 @@ body.gated .gate{display:flex}
             <h3>Content Ideas</h3>
             <span class="hint" id="cCount"></span>
           </div>
-          <div class="table-wrap" id="cTable">
-            <div class="content-grid" id="cBody"></div>
+          <div class="table-wrap">
+            <table id="cTable">
+              <thead>
+                <tr>
+                  <th>Photo</th>
+                  <th data-sort="title">Title</th>
+                  <th data-sort="campaign">Campaign</th>
+                  <th>Idea</th>
+                  <th>Caption</th>
+                </tr>
+              </thead>
+              <tbody id="cBody"></tbody>
+            </table>
           </div>
           <div id="cEmpty"></div>
         </div>
@@ -3417,21 +3417,13 @@ function renderContent(){
   }
   document.getElementById('cEmpty').innerHTML = '';
   document.getElementById('cBody').innerHTML = rows.map(function(r){
-    var photo = r.photoRef
-      ? '<img src="' + esc(r.photoRef) + '" alt="" />'
-      : '<span class="content-card-noimg">No photo</span>';
-    var campaign = r.campaign ? '<span class="content-card-campaign">' + esc(r.campaign) + '</span>' : '';
-    var idea = truncateText(r.idea, 90);
-    var caption = truncateText(r.caption, 90);
-    return '<div class="content-card" data-content-row="' + esc(r.id) + '">' +
-      '<div class="content-card-photo">' + photo + '</div>' +
-      '<div class="content-card-body">' +
-        '<h4 class="content-card-title">' + esc(r.title || '(untitled)') + '</h4>' +
-        campaign +
-        (idea ? '<p class="content-card-idea">' + esc(idea) + '</p>' : '') +
-        (caption ? '<p class="content-card-caption">"' + esc(caption) + '"</p>' : '') +
-      '</div>' +
-    '</div>';
+    return '<tr data-content-row="' + esc(r.id) + '">' +
+      '<td data-label="Photo">' + (r.photoRef ? '<img class="photo-thumb" src="' + esc(r.photoRef) + '" alt="" />' : '-') + '</td>' +
+      '<td class="name" data-label="Title">' + esc(r.title || '(untitled)') + '</td>' +
+      '<td class="sub" data-label="Campaign">' + esc(r.campaign || '-') + '</td>' +
+      '<td class="sub" data-label="Idea">' + esc(truncateText(r.idea, 60) || '-') + '</td>' +
+      '<td class="sub" data-label="Caption">' + esc(truncateText(r.caption, 60) || '-') + '</td>' +
+    '</tr>';
   }).join('');
 }
 function renderContentPhoto(){
@@ -4368,44 +4360,22 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav-group'), function(g
     });
   }
 });
-var VALID_VIEWS = ['content','records','analytics','targets','budget','billing','database','settings','events'];
-function activateView(view, opts){
-  opts = opts || {};
-  var btn = document.querySelector('.nav .nav-link[data-view="' + view + '"]');
-  if(!btn) return;
-  state.view = view;
-  Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), function(x){ x.removeAttribute('aria-current'); });
-  btn.setAttribute('aria-current','page');
-  document.getElementById('view-records').classList.toggle('active', state.view === 'records');
-  document.getElementById('view-analytics').classList.toggle('active', state.view === 'analytics');
-  document.getElementById('view-targets').classList.toggle('active', state.view === 'targets' || state.view === 'budget');
-  document.getElementById('view-billing').classList.toggle('active', state.view === 'billing');
-  document.getElementById('view-database').classList.toggle('active', state.view === 'database');
-  document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
-  document.getElementById('view-events').classList.toggle('active', state.view === 'events');
-  document.getElementById('view-content').classList.toggle('active', state.view === 'content');
-  render();
-  if(!opts.skipHash){
-    if(window.location.hash !== '#' + view){
-      history.replaceState(null, '', '#' + view);
-    }
-  }
-}
 Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), function(b){
   b.addEventListener('click', function(){
-    activateView(b.dataset.view);
+    state.view = b.dataset.view;
+    Array.prototype.forEach.call(document.querySelectorAll('.nav .nav-link'), function(x){ x.removeAttribute('aria-current'); });
+    b.setAttribute('aria-current','page');
+    document.getElementById('view-records').classList.toggle('active', state.view === 'records');
+    document.getElementById('view-analytics').classList.toggle('active', state.view === 'analytics');
+    document.getElementById('view-targets').classList.toggle('active', state.view === 'targets' || state.view === 'budget');
+    document.getElementById('view-billing').classList.toggle('active', state.view === 'billing');
+    document.getElementById('view-database').classList.toggle('active', state.view === 'database');
+    document.getElementById('view-settings').classList.toggle('active', state.view === 'settings');
+    document.getElementById('view-events').classList.toggle('active', state.view === 'events');
+    document.getElementById('view-content').classList.toggle('active', state.view === 'content');
+    render();
   });
 });
-(function(){
-  var initial = (window.location.hash || '').replace('#','');
-  if(VALID_VIEWS.indexOf(initial) !== -1){
-    activateView(initial, { skipHash:true });
-  }
-  window.addEventListener('hashchange', function(){
-    var v = (window.location.hash || '').replace('#','');
-    if(VALID_VIEWS.indexOf(v) !== -1) activateView(v, { skipHash:true });
-  });
-})();
 
 ['rBasis','rYear','rMonth','rDay'].forEach(function(id){
   document.getElementById(id).addEventListener('change', function(e){
