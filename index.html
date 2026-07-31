@@ -1094,6 +1094,13 @@ body.gated .gate{display:flex}
         </div>
         <div class="card">
           <div class="card-head">
+            <h3>Top 5 Best-Selling Days</h3>
+            <span class="hint" id="eTopDaysYear"></span>
+          </div>
+          <div id="eTopDays"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
             <h3 id="eBreakTitle">All events</h3>
             <span class="hint" id="eCount"></span>
           </div>
@@ -3552,6 +3559,33 @@ function renderEventChart(){
       return '<div class="' + (state.ef.month !== 'all' && String(state.ef.month) === x.key ? 'on' : '') + '">' + esc(x.label) + '</div>';
     }).join('') + '</div>';
 }
+function topSalesDays(n){
+  var byDate = {};
+  eventSalesFlat().forEach(function(d){
+    if(!dateParts(d.date)) return;
+    if(!byDate[d.date]) byDate[d.date] = { date:d.date, amount:0, events:{} };
+    byDate[d.date].amount += num(d.amount);
+    if(num(d.amount) > 0) byDate[d.date].events[d.eventName] = 1;
+  });
+  var list = Object.keys(byDate).map(function(k){
+    var x = byDate[k];
+    return { date:x.date, amount:x.amount, events:Object.keys(x.events) };
+  }).filter(function(x){ return x.amount > 0; });
+  list.sort(function(a,b){ return b.amount - a.amount || a.date.localeCompare(b.date); });
+  return list.slice(0, n);
+}
+function renderEventTopDays(){
+  var top = topSalesDays(5);
+  document.getElementById('eTopDaysYear').textContent = 'All events';
+  document.getElementById('eTopDays').innerHTML = top.length ? top.map(function(d, i){
+    var medal = i === 0 ? '&#129351;' : i === 1 ? '&#129352;' : i === 2 ? '&#129353;' : String(i + 1);
+    return '<div class="rank-row' + (i < 3 ? ' top' + (i+1) : '') + '">' +
+      '<span class="rank-medal' + (i < 3 ? '' : ' num') + '">' + medal + '</span>' +
+      '<span class="rank-date">' + dateLabel(d.date) + (d.events.length ? '<br><span style="font-size:11px;color:var(--muted)">' + esc(d.events.join(', ')) + '</span>' : '') + '</span>' +
+      '<span class="rank-amt">' + money(d.amount) + '</span>' +
+    '</div>';
+  }).join('') : '<div class="empty"><p>No sales recorded yet.</p></div>';
+}
 function openMonthSales(monthKey){
   var year = +state.ef.year;
   var monthName = MONTHS[+monthKey - 1];
@@ -3615,6 +3649,7 @@ function eventStatusInfo(ev){
 }
 function renderEvents(){
   renderEventChart();
+  renderEventTopDays();
   var year = +state.ef.year;
   var head = document.getElementById('eHead');
   var body = document.getElementById('eBody');
