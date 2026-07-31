@@ -1288,7 +1288,7 @@ body.gated .gate{display:flex}
     <div class="modal-head">
       <div>
         <h3 id="mdMonthSalesTitle">Daily sales</h3>
-        <p><span id="msCount"></span></p>
+        <p><span id="msCount"></span> - click a row to open that event's details</p>
       </div>
       <button class="x" type="button" data-close aria-label="Close">&times;</button>
     </div>
@@ -3610,7 +3610,7 @@ function openMonthSales(monthKey){
     var activeAmounts = dayRows.filter(function(d){ return d.amount > 0; }).map(function(d){ return d.amount; });
     var avg = activeAmounts.length ? activeAmounts.reduce(function(s,v){ return s+v; },0) / activeAmounts.length : 0;
     body.innerHTML = dayRows.map(function(d){
-      return '<tr>' +
+      return '<tr data-open-event="' + esc(d.eventId) + '" style="cursor:pointer">' +
         '<td class="date" data-label="Date">' + dateLabel(d.date) + '</td>' +
         '<td class="name" data-label="Event">' + esc(d.eventName) + '</td>' +
         '<td class="sub" data-label="Location">' + esc(d.place || '-') + '</td>' +
@@ -3622,6 +3622,21 @@ function openMonthSales(monthKey){
       '<td class="num" data-label="Sales">' + money(monthTotal) + '</td></tr>';
   }
   openModal('mdMonthSales');
+}
+function openMonthSalesOrEvent(monthKey){
+  var year = +state.ef.year;
+  var dayRows = eventSalesFlat().filter(function(d){
+    var p = dateParts(d.date);
+    return p && p.y === year && p.m === +monthKey;
+  });
+  var uniqueIds = {};
+  dayRows.forEach(function(d){ if(d.eventId) uniqueIds[d.eventId] = 1; });
+  var ids = Object.keys(uniqueIds);
+  if(ids.length === 1){
+    openEventDetail(ids[0]);
+    return;
+  }
+  openMonthSales(monthKey);
 }
 function eventGrade(amount, avg){
   if(!avg) return 'none';
@@ -4819,7 +4834,14 @@ document.getElementById('evDayList').addEventListener('click', function(e){
 document.getElementById('eChart').addEventListener('click', function(e){
   var b = e.target.closest('[data-ebucket]');
   if(!b) return;
-  openMonthSales(b.dataset.ebucket);
+  openMonthSalesOrEvent(b.dataset.ebucket);
+});
+document.getElementById('msBody').addEventListener('click', function(e){
+  var row = e.target.closest('[data-open-event]');
+  if(!row) return;
+  var id = row.dataset.openEvent;
+  closeModal('mdMonthSales');
+  if(id) openEventDetail(id);
 });
 document.getElementById('eCrumbs').addEventListener('click', function(e){
   if(!e.target.dataset || !e.target.dataset.ecrumb) return;
@@ -4859,6 +4881,48 @@ document.getElementById('btnRemovePhoto').addEventListener('click', function(){
   state.contentPhotoDraft = '';
   renderContentPhoto();
 });
+var PHOTO_MAX_BYTES = 900000;
+function compressImageDataUrl(dataUrl, maxBytes, cb){
+  var done = false;
+  function finish(result){
+    if(done) return;
+    done = true;
+    cb(result);
+  }
+  try {
+    var img = new Image();
+    var fallbackTimer = setTimeout(function(){ finish(null); }, 1200);
+    img.onload = function(){
+      clearTimeout(fallbackTimer);
+      try {
+        var maxDim = 1400;
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        if(!w || !h){ finish(null); return; }
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
+        var ctx = canvas.getContext('2d');
+        if(!ctx){ finish(null); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var qualities = [0.85, 0.7, 0.55, 0.4];
+        var best = null;
+        for(var i=0;i<qualities.length;i++){
+          var out = canvas.toDataURL('image/jpeg', qualities[i]);
+          if(!best) best = out;
+          if(out.length <= maxBytes){ best = out; break; }
+          best = out;
+        }
+        finish(best);
+      } catch(err){ finish(null); }
+    };
+    img.onerror = function(){ clearTimeout(fallbackTimer); finish(null); };
+    img.src = dataUrl;
+  } catch(err){
+    finish(null);
+  }
+}
 document.getElementById('cf_photoZone').addEventListener('paste', function(e){
   var items = (e.clipboardData && e.clipboardData.items) || [];
   var imageItem = null;
@@ -4872,12 +4936,27 @@ document.getElementById('cf_photoZone').addEventListener('paste', function(e){
   var reader = new FileReader();
   reader.onload = function(){
     var dataUrl = String(reader.result || '');
-    if(dataUrl.length > 900000){
-      toast('Image too large - try a smaller screenshot or crop it first');
+    if(dataUrl.length <= PHOTO_MAX_BYTES){
+      state.contentPhotoDraft = dataUrl;
+      renderContentPhoto();
       return;
     }
-    state.contentPhotoDraft = dataUrl;
-    renderContentPhoto();
+    var hint = document.getElementById('cf_photoHint');
+    if(hint){ hint.textContent = 'Compressing image...'; hint.style.display = ''; }
+    compressImageDataUrl(dataUrl, PHOTO_MAX_BYTES, function(result){
+      if(result && result.length <= PHOTO_MAX_BYTES){
+        state.contentPhotoDraft = result;
+        renderContentPhoto();
+        toast('Image compressed to fit');
+      } else if(result){
+        state.contentPhotoDraft = result;
+        renderContentPhoto();
+        toast('Compressed as much as possible, but it is still large - consider cropping it');
+      } else {
+        if(hint) hint.textContent = 'Click here, then paste an image (Ctrl+V / Cmd+V)';
+        toast('Image too large - try a smaller screenshot or crop it first');
+      }
+    });
   };
   reader.onerror = function(){ toast('Could not read that image'); };
   reader.readAsDataURL(file);
