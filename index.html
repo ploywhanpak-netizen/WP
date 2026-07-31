@@ -1225,6 +1225,34 @@ body.gated .gate{display:flex}
   </div>
 </div>
 
+<!-- ============ MONTH SALES POPUP ============ -->
+<div class="backdrop" id="mdMonthSales">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mdMonthSalesTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="mdMonthSalesTitle">Daily sales</h3>
+        <p><span id="msCount"></span></p>
+      </div>
+      <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Event</th><th>Location</th><th class="num">Sales</th></tr>
+          </thead>
+          <tbody id="msBody"></tbody>
+          <tfoot id="msFoot"></tfoot>
+        </table>
+      </div>
+      <div id="msEmpty"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" type="button" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="dropzone" id="dropzone"><div class="dropzone-inner">Drop a CSV file to import</div></div>
 <div class="toast" id="toast"></div>
 
@@ -3261,6 +3289,43 @@ function renderEventChart(){
       return '<div class="' + (state.ef.month !== 'all' && String(state.ef.month) === x.key ? 'on' : '') + '">' + esc(x.label) + '</div>';
     }).join('') + '</div>';
 }
+function openMonthSales(monthKey){
+  var year = +state.ef.year;
+  var monthName = MONTHS[+monthKey - 1];
+  var dayRows = eventSalesFlat().filter(function(d){
+    var p = dateParts(d.date);
+    return p && p.y === year && p.m === +monthKey;
+  }).sort(function(a,b){ return a.date.localeCompare(b.date); });
+
+  document.getElementById('mdMonthSalesTitle').textContent = 'Daily sales - ' + monthName + ' ' + year;
+  document.getElementById('msCount').textContent = dayRows.length + ' day' + (dayRows.length === 1 ? '' : 's');
+
+  var body = document.getElementById('msBody');
+  var foot = document.getElementById('msFoot');
+  var empty = document.getElementById('msEmpty');
+
+  if(!dayRows.length){
+    body.innerHTML = '';
+    foot.innerHTML = '';
+    empty.innerHTML = '<div class="empty"><h4>No sales logged in ' + esc(monthName) + '</h4><p>Pick another month, or add sales to an event.</p></div>';
+  } else {
+    empty.innerHTML = '';
+    var activeAmounts = dayRows.filter(function(d){ return d.amount > 0; }).map(function(d){ return d.amount; });
+    var avg = activeAmounts.length ? activeAmounts.reduce(function(s,v){ return s+v; },0) / activeAmounts.length : 0;
+    body.innerHTML = dayRows.map(function(d){
+      return '<tr>' +
+        '<td class="date" data-label="Date">' + dateLabel(d.date) + '</td>' +
+        '<td class="name" data-label="Event">' + esc(d.eventName) + '</td>' +
+        '<td class="sub" data-label="Location">' + esc(d.place || '-') + '</td>' +
+        '<td class="num" data-label="Sales"><span class="chip ' + eventGrade(d.amount, avg) + '">' + money(d.amount) + '</span></td>' +
+      '</tr>';
+    }).join('');
+    var monthTotal = dayRows.reduce(function(s,d){ return s + d.amount; }, 0);
+    foot.innerHTML = '<tr><td colspan="3">Total - ' + dayRows.length + ' day' + (dayRows.length === 1 ? '' : 's') + '</td>' +
+      '<td class="num" data-label="Sales">' + money(monthTotal) + '</td></tr>';
+  }
+  openModal('mdMonthSales');
+}
 function eventGrade(amount, avg){
   if(!avg) return 'none';
   if(amount >= avg * 1.1) return 'good';
@@ -4454,9 +4519,7 @@ document.getElementById('evDayList').addEventListener('click', function(e){
 document.getElementById('eChart').addEventListener('click', function(e){
   var b = e.target.closest('[data-ebucket]');
   if(!b) return;
-  var key = b.dataset.ebucket;
-  state.ef.month = (state.ef.month === key ? 'all' : key);
-  render();
+  openMonthSales(b.dataset.ebucket);
 });
 document.getElementById('eCrumbs').addEventListener('click', function(e){
   if(!e.target.dataset || !e.target.dataset.ecrumb) return;
