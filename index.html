@@ -421,7 +421,7 @@ select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
 .content-card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:transform .12s ease,box-shadow .12s ease}
 .content-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(18,33,47,.10)}
 .content-card-photo{aspect-ratio:4/3;background:var(--clay-soft);display:flex;align-items:center;justify-content:center;overflow:hidden}
-.content-card-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.content-card-photo img{width:100%;height:100%;object-fit:contain;display:block}
 .content-card-noimg{font-size:11.5px;color:var(--clay);font-family:var(--mono);letter-spacing:.04em}
 .content-card-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .content-card-title{font-family:var(--display);font-size:14px;font-weight:600;color:var(--ink);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -459,8 +459,13 @@ select.status-badge:focus{box-shadow:0 0 0 2px rgba(0,0,0,.15)}
 .qn-row:first-child{border-top:0}
 .qn-meta{font-family:var(--mono);font-size:11px;color:var(--muted);width:118px;flex:none;padding-top:2px;white-space:nowrap}
 .qn-text{flex:1;font-size:13.5px;color:var(--ink);white-space:pre-wrap;word-break:break-word;line-height:1.5}
-.qn-del{flex:none;color:var(--muted);border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 8px;cursor:pointer;font-size:12px}
-.qn-del:hover{color:var(--red);border-color:var(--red)}
+.qn-actions{flex:none;display:flex;gap:6px}
+.qn-icon{flex:none;color:var(--muted);border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 8px;cursor:pointer;font-size:12px}
+.qn-icon:hover{color:var(--ink);border-color:var(--ink)}
+.qn-icon[data-note-del]:hover{color:var(--red);border-color:var(--red)}
+.qn-row-edit{flex-direction:column;align-items:stretch;gap:8px}
+.qn-edit-input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px;resize:vertical;min-height:64px;color:var(--ink)}
+.qn-edit-actions{display:flex;justify-content:flex-end;gap:8px}
 .content-card-idea{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .content-card-caption{margin:0;font-size:12px;color:var(--muted);font-style:italic;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .billing-modal{max-width:760px}
@@ -731,50 +736,50 @@ body.gated .gate{display:flex}
       <p>Campaign cost &amp; performance</p>
     </div>
     <nav class="nav">
-      <div class="nav-group" data-nav-group="quick-note">
-        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Quick Note</button>
-        <div class="nav-items">
-          <button class="nav-link" type="button" data-view="quicknote"><span class="idx">01</span> Quick Note</button>
-        </div>
-      </div>
       <div class="nav-group" data-nav-group="content">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Content</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="content"><span class="idx">02</span> Content Idea</button>
-          <button class="nav-link" type="button" data-view="calendar"><span class="idx">03</span> Calendar</button>
+          <button class="nav-link" type="button" data-view="content"><span class="idx">01</span> Content Idea</button>
+          <button class="nav-link" type="button" data-view="calendar"><span class="idx">02</span> Calendar</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="influencer">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Influencer</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="records" aria-current="page"><span class="idx">04</span> Influencer Records</button>
-          <button class="nav-link" type="button" data-view="analytics"><span class="idx">05</span> Engagement KPI</button>
+          <button class="nav-link" type="button" data-view="records" aria-current="page"><span class="idx">03</span> Influencer Records</button>
+          <button class="nav-link" type="button" data-view="analytics"><span class="idx">04</span> Engagement KPI</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="target-budget">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Target &amp; Budget</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="targets"><span class="idx">06</span> Target</button>
-          <button class="nav-link" type="button" data-view="budget"><span class="idx">07</span> Budget</button>
+          <button class="nav-link" type="button" data-view="targets"><span class="idx">05</span> Target</button>
+          <button class="nav-link" type="button" data-view="budget"><span class="idx">06</span> Budget</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="project-requests">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Requests</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="billing"><span class="idx">08</span> Projects Requests</button>
-          <button class="nav-link" type="button" data-view="database"><span class="idx">09</span> ฐานข้อมูล</button>
+          <button class="nav-link" type="button" data-view="billing"><span class="idx">07</span> Projects Requests</button>
+          <button class="nav-link" type="button" data-view="database"><span class="idx">08</span> ฐานข้อมูล</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="event">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Event</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="events"><span class="idx">10</span> Events</button>
+          <button class="nav-link" type="button" data-view="events"><span class="idx">09</span> Events</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="project-tracker">
         <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Project Tracker</button>
         <div class="nav-items">
-          <button class="nav-link" type="button" data-view="projtasks"><span class="idx">11</span> Project Tracker</button>
+          <button class="nav-link" type="button" data-view="projtasks"><span class="idx">10</span> Project Tracker</button>
+        </div>
+      </div>
+      <div class="nav-group" data-nav-group="quick-note">
+        <button class="nav-title" type="button" data-nav-toggle aria-expanded="true">Quick Note</button>
+        <div class="nav-items">
+          <button class="nav-link" type="button" data-view="quicknote"><span class="idx">11</span> Quick Note</button>
         </div>
       </div>
       <div class="nav-group" data-nav-group="settings">
@@ -2376,6 +2381,7 @@ var state = {
   editingProjTaskId: null,
   notes: [],
   notesSyncOff: false,
+  editingNoteId: null,
   view: 'records',
   rf: { basis:'publishDate', year:String(now.getFullYear()), month:String(now.getMonth()+1), day:'all', place:'all', places:[], q:'' },
   af: { basis:'publishDate', year:String(now.getFullYear()), month:'all', day:'all', place:'all', places:[] },
@@ -3940,12 +3946,29 @@ function renderQuickNotes(){
   var list = (state.notes || []).slice().sort(function(a,b){ return (num(b.createdAt) || 0) - (num(a.createdAt) || 0); });
   document.getElementById('qnEmpty').innerHTML = list.length ? '' : '<div class="empty"><h4>No notes yet</h4><p>Type something above and save it.</p></div>';
   document.getElementById('qnList').innerHTML = list.map(function(n){
+    if(state.editingNoteId === n.id){
+      return '<div class="qn-row qn-row-edit" data-note-id="' + esc(n.id) + '">' +
+        '<div class="qn-meta">' + noteDateLabel(n.createdAt) + '</div>' +
+        '<textarea class="qn-edit-input" data-note-edit-input rows="3">' + esc(n.text || '') + '</textarea>' +
+        '<div class="qn-edit-actions">' +
+          '<button class="btn ghost" type="button" data-note-cancel="' + esc(n.id) + '">Cancel</button>' +
+          '<button class="btn primary" type="button" data-note-save="' + esc(n.id) + '">Save</button>' +
+        '</div>' +
+      '</div>';
+    }
     return '<div class="qn-row" data-note-id="' + esc(n.id) + '">' +
       '<div class="qn-meta">' + noteDateLabel(n.createdAt) + '</div>' +
       '<div class="qn-text">' + esc(n.text || '') + '</div>' +
-      '<button class="qn-del" type="button" data-note-del="' + esc(n.id) + '" aria-label="Delete note">&#128465;</button>' +
+      '<div class="qn-actions">' +
+        '<button class="qn-icon" type="button" data-note-editbtn="' + esc(n.id) + '" aria-label="Edit note" title="Edit">&#9998;</button>' +
+        '<button class="qn-icon" type="button" data-note-del="' + esc(n.id) + '" aria-label="Delete note" title="Delete">&#128465;</button>' +
+      '</div>' +
     '</div>';
   }).join('');
+  if(state.editingNoteId){
+    var ta = document.querySelector('#qnList [data-note-edit-input]');
+    if(ta){ ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length; }
+  }
 }
 function saveQuickNote(){
   var input = document.getElementById('qnInput');
@@ -3958,11 +3981,33 @@ function saveQuickNote(){
   input.value = '';
   renderQuickNotes();
 }
+function startEditNote(id){
+  state.editingNoteId = id;
+  renderQuickNotes();
+}
+function cancelEditNote(){
+  state.editingNoteId = null;
+  renderQuickNotes();
+}
+function saveEditNote(id){
+  var row = document.querySelector('#qnList [data-note-id="' + id + '"]');
+  var ta = row && row.querySelector('[data-note-edit-input]');
+  if(!ta) return;
+  var text = ta.value.trim();
+  if(!text) return;
+  var note = (state.notes || []).find(function(n){ return n.id === id; });
+  if(!note) return;
+  note.text = text;
+  saveNoteOne(note);
+  state.editingNoteId = null;
+  renderQuickNotes();
+}
 function deleteQuickNote(id){
   if(!id) return;
   if(!confirm('Delete this note?')) return;
   state.notes = (state.notes || []).filter(function(n){ return n.id !== id; });
   removeNoteOne(id);
+  if(state.editingNoteId === id) state.editingNoteId = null;
   renderQuickNotes();
 }
 
@@ -5650,8 +5695,24 @@ document.getElementById('qnInput').addEventListener('keydown', function(e){
   }
 });
 document.getElementById('qnList').addEventListener('click', function(e){
+  var editBtn = e.target.closest('[data-note-editbtn]');
+  if(editBtn){ startEditNote(editBtn.dataset.noteEditbtn); return; }
+  var cancelBtn = e.target.closest('[data-note-cancel]');
+  if(cancelBtn){ cancelEditNote(); return; }
+  var saveBtn = e.target.closest('[data-note-save]');
+  if(saveBtn){ saveEditNote(saveBtn.dataset.noteSave); return; }
   var del = e.target.closest('[data-note-del]');
   if(del) deleteQuickNote(del.dataset.noteDel);
+});
+document.getElementById('qnList').addEventListener('keydown', function(e){
+  var ta = e.target.closest('[data-note-edit-input]');
+  if(!ta) return;
+  if(e.key === 'Escape'){ e.preventDefault(); cancelEditNote(); }
+  if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)){
+    e.preventDefault();
+    var row = ta.closest('[data-note-id]');
+    saveEditNote(row.dataset.noteId);
+  }
 });
 
 document.getElementById('calPrevMonth').addEventListener('click', function(){
